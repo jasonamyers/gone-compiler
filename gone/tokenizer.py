@@ -89,7 +89,7 @@ more tricky tests:
 
 Bonus: How would you go about turning these tests into proper unit tests?
 '''
-
+import sys
 # ----------------------------------------------------------------------
 # The following import loads a function error(lineno,msg) that should be
 # used to report all error messages issued by your lexer.  Unit tests and
@@ -115,7 +115,7 @@ tokens = [
     # Operators and delimiters
     'PLUS', 'MINUS', 'TIMES', 'DIVIDE',
     'ASSIGN', 'SEMI', 'LPAREN', 'RPAREN', 
-    'COMMA',
+    'COMMA', 'LBRACE', 'RBRACE',
     
     # Literals
     'INTEGER', 'FLOAT', 'STRING',
@@ -134,15 +134,17 @@ t_ignore = ' \t\r'
 # 
 # Tokens for simple symbols: + - * / = ( ) ; 
 
-t_PLUS      = r'regex for a single plus sign'
-t_MINUS     = r'regex for a single minus sign'
-t_TIMES     = r'regex for a single star'
-t_DIVIDE    = r'regex for a single forward slash'
-t_ASSIGN    = r'regex for a single equals sign'
-t_SEMI      = r'regex for a semicolon'
-t_LPAREN    = r'regex for a left paren ('
-t_RPAREN    = r'regex for a right paren )'
-t_COMMA     = r'regex for a comma'
+t_PLUS      = r'\+'
+t_MINUS     = r'\-'
+t_TIMES     = r'\*'
+t_DIVIDE    = r'\/'
+t_ASSIGN    = r'='
+t_SEMI      = r';'
+t_LPAREN    = r'\('
+t_RPAREN    = r'\)'
+t_COMMA     = r','
+t_LBRACE    = r'{'
+t_RBRACE    = r'}'
 
 # ----------------------------------------------------------------------
 # *** YOU MUST COMPLETE : write the regexs and additional code below ***
@@ -156,7 +158,7 @@ t_COMMA     = r'regex for a comma'
 #
 # The value should be converted to a Python float when lexed
 def t_FLOAT(t):
-    r'regex for a floating point number'
+    r'[+-]?(?=\d*[.eE])(?=\.?\d)\d*\.?\d*(?:[eE][+-]?\d+)?'
     t.value = float(t.value)               # Conversion to Python float
     return t
 
@@ -166,7 +168,7 @@ def t_FLOAT(t):
 
 # The value should be converted to a Python int when lexed.
 def t_INTEGER(t):
-    r'regex for an integer'
+    r'\d+'
     # Conversion to a Python int
     t.value = int(t.value)
     return t
@@ -190,7 +192,7 @@ def t_INTEGER(t):
 # if you are bored and have extra time.
     
 def t_STRING(t):
-    r'regex for a string literal'
+    r'".*"'
     # Strip off the leading/trailing quotes
     t.value = t.value[1:-1]
 
@@ -208,7 +210,7 @@ def t_STRING(t):
 # That is, they start with a letter or underscore (_) and can contain
 # an arbitrary number of letters, digits, or underscores after that.
 def t_ID(t):
-    r'regex for an identifier'
+    r'[a-zA-Z_][a-zA-Z0-9_]*'
 
     # *** YOU MUST IMPLEMENT ***
     # Add code to match keywords such as 'var','const','print','func','extern'
@@ -217,6 +219,8 @@ def t_ID(t):
     # if t.value =='var':
     #      t.type = 'VAR'
     #
+    if t.value in ['var', 'const', 'print', 'func', 'extern']:
+        t.type = t.value.upper()
 
     return t
 
@@ -228,19 +232,19 @@ def t_ID(t):
 
 # One or more blank lines
 def t_newline(t):
-    r'regex for one or more newlines'
+    r'\n'
     t.lexer.lineno += len(t.value)
 
 # C-style comment (/* ... */)
 def t_COMMENT(t):
-    r'regex for a C style comment'
+    r'/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/'
 
     # Must count the number of newlines included to keep line count accurate
     t.lexer.lineno += t.value.count('\n')
     
 # C++-style comment (//...)
 def t_CPPCOMMENT(t):
-    r'regex for a C plusplus comment'
+    r'(//.*)'
     t.lexer.lineno += 1
 
 # ----------------------------------------------------------------------
@@ -256,12 +260,12 @@ def t_error(t):
 
 # Unterminated C-style comment
 def t_COMMENT_UNTERM(t):
-    r'regex for an unterminated comment'
+    r'/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*'
     error(t.lexer.lineno,"Unterminated comment")
 
 # Unterminated string literal
 def t_STRING_UNTERM(t):
-    r'regex for an unterminated string literal'
+    r'".+[^"](,|$| |\t)'
     error(t.lexer.lineno,"Unterminated string literal")
     t.lexer.lineno += 1
     
@@ -278,20 +282,25 @@ def get_lexer():
     _lexer.lineno = 1
     return _lexer
 
-def main():
+def tokenize(text):
+    lexer = get_lexer()
+    lexer.input(text)
+    return list(iter(lexer.token, None))
+
+def reporter(text):
+    print('%s' % text)
+
+def main(args):
     '''
     Main program. For testing purposes.
     '''
-    import sys
     
-    if len(sys.argv) != 2:
-        sys.stderr.write("Usage: %s filename\n" % sys.argv[0])
+    if len(args) != 2:
+        sys.stderr.write("Usage: %s filename\n" % args[0])
         raise SystemExit(1)
 
-    lexer = get_lexer()
-    lexer.input(open(sys.argv[1]).read())
-    for tok in iter(lexer.token, None):
-        sys.stdout.write('%s\n' % tok)
+    for tok in tokenize(open(args[1]).read()):
+        reporter(tok)
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)

@@ -85,18 +85,18 @@ from .errors import error
 from .tokenizer import tokens
 
 # ----------------------------------------------------------------------
-# Get the AST nodes.  
+# Get the AST nodes.
 # Read instructions in goneast.py
 from .ast import *
 
 # ----------------------------------------------------------------------
-# Operator precedence table.   Operators must follow the same 
+# Operator precedence table.   Operators must follow the same
 # precedence rules as in Python.  Instructions to be given in the project.
 # See http://www.dabeaz.com/ply/ply.html#ply_nn27
 
 precedence = (
     ('left', 'PLUS', 'MINUS'),
-    ('left', 'TIMES', 'DIVIDE'), 
+    ('left', 'TIMES', 'DIVIDE'),
 )
 
 # ----------------------------------------------------------------------
@@ -120,7 +120,7 @@ precedence = (
 # to p[0] as shown above.
 #
 # For the purposes of lineno number tracking, you should assign a line number
-# to each AST node as appropriate.  To do this, I suggest pulling the 
+# to each AST node as appropriate.  To do this, I suggest pulling the
 # line number off of any nearby terminal symbol.  For example:
 #
 # def p_print_statement(p):
@@ -129,7 +129,7 @@ precedence = (
 #     '''
 #     p[0] = PrintStatement(p[2],lineno=p.lineno(1))
 #
-# 
+#
 
 # STARTING OUT
 # ============
@@ -138,101 +138,119 @@ precedence = (
 #
 # Now, add features by looking at the code in Tests/parsetest1-6.g
 
+
 def p_program(p):
-    '''
+    """
     program : statements
-    '''
+    """
     p[0] = p[1]
+
 
 def p_statements(p):
-    '''
+    """
     statements :  statements statement
-               |  statement
-    '''
-    if len(p) == 3:
-        p[1].statements.append(p[2])
-        p[0] = p[1]
-    else:
-        p[0] = Statements([p[1]])
-
-def p_statement(p):
-    '''
-    statement :  print_statement
-              |  constant_declaration
-    '''
+    """
+    p[1].statements.append(p[2])
     p[0] = p[1]
 
+
+def p_statements_single(p):
+    """
+    statements : statement
+    """
+    p[0] = Statements([p[1]])
+
+
+def p_statement(p):
+    """
+    statement :  print_statement
+              |  constant_declaration
+              |  var_declaration
+    """
+    p[0] = p[1]
+
+
 def p_print_statemnt(p):
-    '''
+    """
     print_statement : PRINT expression SEMI
-    '''
+    """
     p[0] = PrintStatement(p[2], lineno=p.lineno(1))
 
+
 def p_expression_unary(p):
-    '''
+    """
     expression :  PLUS expression
                |  MINUS expression
-    '''
+    """
     p[0] = UnaryOperator(p[1], p[2], lineno=p.lineno(1))
 
+
 def p_expression_binary(p):
-    '''
+    """
     expression : expression PLUS  expression
                | expression MINUS expression
                | expression TIMES expression
                | expression DIVIDE expression
-    '''
+    """
     p[0] = BinaryOperator(p[2], p[1], p[3])
-    
+
+
 def p_expression(p):
-    '''
+    """
     expression : literal
-    '''
+    """
     p[0] = p[1]
 
+
 def p_location(p):
-    '''
+    """
     expression : location
     location : ID
-    '''
+    """
     p[0] = LoadVariable(p[1])
 
+
 def p_expression_group(p):
-    '''
+    """
     expression : LPAREN expression RPAREN
-    '''
+    """
     p[0] = p[2]
 
+
 def p_constant_declaration(p):
-    '''
+    """
     constant_declaration : CONST ID ASSIGN expression SEMI
-    '''
+    """
     p[0] = ConstantDeclaration(p[2], p[4], lineno=p.lineno(1))
 
+
 def p_typename(p):
-    '''
+    """
     typename : ID
-    '''
+    """
     p[0] = Typename(p[1])
-    
+
+
 def p_variable_declaration(p):
-    '''
-    statement : var_declaration
+    """
     var_declaration : VAR ID typename SEMI
-                    | VAR ID typename ASSIGN expression SEMI
-    '''
-    if len(p) == 4:
-        p[0] = VariableDeclaration(p[2], p[3], None, lineno=p.lineno(1))
-    elif len(p) == 6:
-        p[0] = VariableDeclaration(p[2], p[3], p[5], lineno=p.lineno(1))
-    
-    
+    """
+    p[0] = VariableDeclaration(p[2], p[3], None, lineno=p.lineno(1))
+
+
+def p_variable_declaration_assignment(p):
+    """
+    var_declaration : VAR ID typename ASSIGN expression SEMI
+    """
+    p[0] = VariableDeclaration(p[2], p[3], p[5], lineno=p.lineno(1))
+
+
 def p_literal(p):
-    '''
+    """
     literal : INTEGER
             | FLOAT
             | STRING
-    '''
+    """
     p[0] = Literal(p[1], lineno=p.lineno(1))
 
 # You need to implement the rest of the grammar rules here
@@ -247,7 +265,7 @@ def p_error(p):
     if p:
         error(p.lineno, "Syntax error in input at token '%s'" % p.value)
     else:
-        error("EOF","Syntax error. No more input.")
+        error("EOF", "Syntax error. No more input.")
 
 # ----------------------------------------------------------------------
 #                     DO NOT MODIFY ANYTHING BELOW HERE
@@ -255,20 +273,22 @@ def p_error(p):
 
 _parser = yacc.yacc()
 
+
 def parse(source):
-    '''
+    """
     Parse source code into an AST. Return the top of the AST tree.
-    '''
+    """
     from .tokenizer import get_lexer
     lexer = get_lexer()
-    
+
     ast = _parser.parse(source, lexer=lexer)
     return ast
 
+
 def main():
-    '''
+    """
     Main program. Used for testing.
-    '''
+    """
     import sys
 
     if len(sys.argv) != 2:
@@ -280,7 +300,7 @@ def main():
 
     # Output the resulting parse tree structure
     for depth, node in flatten(ast):
-        print("%s%s" % (" "*(4*depth), node))
+        print('%s%s' % (' ' * (4 * depth), node))
 
 if __name__ == '__main__':
     main()

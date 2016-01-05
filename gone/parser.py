@@ -95,6 +95,8 @@ from .ast import *
 # See http://www.dabeaz.com/ply/ply.html#ply_nn27
 
 precedence = (
+    ('left', 'PLUS', 'MINUS'),
+    ('left', 'TIMES', 'DIVIDE'), 
 )
 
 # ----------------------------------------------------------------------
@@ -136,25 +138,102 @@ precedence = (
 #
 # Now, add features by looking at the code in Tests/parsetest1-6.g
 
+def p_program(p):
+    '''
+    program : statements
+    '''
+    p[0] = p[1]
+
+def p_statements(p):
+    '''
+    statements :  statements statement
+               |  statement
+    '''
+    if len(p) == 3:
+        p[1].statements.append(p[2])
+        p[0] = p[1]
+    else:
+        p[0] = Statements([p[1]])
+
+def p_statement(p):
+    '''
+    statement :  print_statement
+              |  constant_declaration
+    '''
+    p[0] = p[1]
+
 def p_print_statemnt(p):
     '''
     print_statement : PRINT expression SEMI
     '''
-    p[0] = PrintStatement(p[2])
+    p[0] = PrintStatement(p[2], lineno=p.lineno(1))
 
+def p_expression_unary(p):
+    '''
+    expression :  PLUS expression
+               |  MINUS expression
+    '''
+    p[0] = UnaryOperator(p[1], p[2], lineno=p.lineno(1))
+
+def p_expression_binary(p):
+    '''
+    expression : expression PLUS  expression
+               | expression MINUS expression
+               | expression TIMES expression
+               | expression DIVIDE expression
+    '''
+    p[0] = BinaryOperator(p[2], p[1], p[3])
+    
 def p_expression(p):
     '''
     expression : literal
     '''
     p[0] = p[1]
 
+def p_location(p):
+    '''
+    expression : location
+    location : ID
+    '''
+    p[0] = LoadVariable(p[1])
+
+def p_expression_group(p):
+    '''
+    expression : LPAREN expression RPAREN
+    '''
+    p[0] = p[2]
+
+def p_constant_declaration(p):
+    '''
+    constant_declaration : CONST ID ASSIGN expression SEMI
+    '''
+    p[0] = ConstantDeclaration(p[2], p[4], lineno=p.lineno(1))
+
+def p_typename(p):
+    '''
+    typename : ID
+    '''
+    p[0] = Typename(p[1])
+    
+def p_variable_declaration(p):
+    '''
+    statement : var_declaration
+    var_declaration : VAR ID typename SEMI
+                    | VAR ID typename ASSIGN expression SEMI
+    '''
+    if len(p) == 4:
+        p[0] = VariableDeclaration(p[2], p[3], None, lineno=p.lineno(1))
+    elif len(p) == 6:
+        p[0] = VariableDeclaration(p[2], p[3], p[5], lineno=p.lineno(1))
+    
+    
 def p_literal(p):
     '''
     literal : INTEGER
             | FLOAT
             | STRING
     '''
-    p[0] = Literal(p[1],lineno=p.lineno(1))
+    p[0] = Literal(p[1], lineno=p.lineno(1))
 
 # You need to implement the rest of the grammar rules here
 
@@ -174,7 +253,7 @@ def p_error(p):
 #                     DO NOT MODIFY ANYTHING BELOW HERE
 # ----------------------------------------------------------------------
 
-_parser = yacc()
+_parser = yacc.yacc()
 
 def parse(source):
     '''

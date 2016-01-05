@@ -40,6 +40,10 @@ class AST(object):
 # ----------------------------------------------------------------------
 
 # A few sample nodes
+class Statements(AST):
+    ''' A sequence of statements (e.g. multiple print statements)
+    '''
+    _fields = ['statements']
 
 class PrintStatement(AST):
     '''
@@ -53,6 +57,45 @@ class Literal(AST):
     '''
     _fields = ['value']
 
+class BinaryOperator(AST):
+    ''' expr + expr
+    '''
+    _fields = ['op', 'left', 'right']
+
+class UnaryOperator(AST):
+    ''' (-/+)expr
+    '''
+    _fields = ['op', 'expr']
+
+class ConstantDeclaration(AST):
+    '''
+    A constant declaration such as const pi = 3.14159;
+    '''
+    _fields = ['name', 'expr']
+
+class VariableDeclaration(AST):
+    '''
+    A variable declaration such as var cookies = 'yummy'
+    '''
+    _fields = ['name', 'typename', 'expr']
+
+class StoreVariable(AST):
+    '''
+    Stores a var in an assignment statement
+    '''
+    _fields = ['name']
+
+class Typename(AST):
+    '''
+    Defines a possible variable type
+    '''
+    _fields = ['name']
+
+class LoadVariable(AST):
+    '''
+    Load a var used in an expression
+    '''
+    _fields = ['name']   
 # You need to add more nodes here.  Suggested nodes include
 # BinaryOperator, UnaryOperator, ConstDeclaration, VarDeclaration, 
 # AssignmentStatement, etc...

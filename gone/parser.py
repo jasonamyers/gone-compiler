@@ -44,7 +44,7 @@ expression :  + expression
            | expression * expression
            | expression / expression
            | ( expression )
-           | ID ( exprlist ) 
+           | ID ( exprlist )
            | location
            | literal
 
@@ -52,9 +52,9 @@ exprlist : | exprlist , expression
            | expression
            | empty
 
-literal : INTEGER     
-        | FLOAT       
-        | STRING      
+literal : INTEGER
+        | FLOAT
+        | STRING
 
 location : ID
 
@@ -166,6 +166,8 @@ def p_statement(p):
     statement :  print_statement
               |  constant_declaration
               |  var_declaration
+              |  assign_statement
+              |  extern_declaration
     """
     p[0] = p[1]
 
@@ -202,12 +204,60 @@ def p_expression(p):
     p[0] = p[1]
 
 
-def p_location(p):
+def p_function_call(p):
+    """
+    expression : ID LPAREN  exprlist RPAREN
+    """
+    p[0] = FunctionCall(p[1], p[3])
+
+
+def p_function_call_no_args(p):
+    """
+    expression : ID LPAREN RPAREN
+    """
+    p[0] = FunctionCall(p[1], None)
+
+
+def p_exprlist(p):
+    """
+    exprlist : exprlist COMMA expression
+    """
+    p[0] = p[1]
+    p[0].append(p[3])
+
+
+def p_exprlist_single(p):
+    """
+    exprlist : expression
+    """
+    p[0] = [p[1]]
+
+
+def p_empty(p):
+    """
+    empty :
+    """
+
+
+def p_expression_location(p):
     """
     expression : location
-    location : ID
     """
     p[0] = LoadVariable(p[1])
+
+
+def p_assign_statement(p):
+    """
+    assign_statement : location ASSIGN expression SEMI
+    """
+    p[0] = AssignmentStatement(p[1], p[3])
+
+
+def p_location(p):
+    """
+    location : ID
+    """
+    p[0] = StoreVariable(p[1])
 
 
 def p_expression_group(p):
@@ -253,14 +303,58 @@ def p_literal(p):
     """
     p[0] = Literal(p[1], lineno=p.lineno(1))
 
-# You need to implement the rest of the grammar rules here
+
+def p_extern_declaration(p):
+    """
+    extern_declaration : EXTERN func_prototype SEMI
+    """
+    p[0] = ExternFunctionDeclartion(p[1])
 
 
-# ----------------------------------------------------------------------
-# DO NOT MODIFY
-#
-# catch-all error handling.   The following function gets called on any
-# bad input.  See http://www.dabeaz.com/ply/ply.html#ply_nn31
+def p_func_prototype(p):
+    """
+    func_prototype : FUNC ID LPAREN parameters RPAREN typename
+    """
+    p[0] = FunctionPrototype(p[2], p[4], p[6], lineno=p.lineno(1))
+
+
+def p_func_prototype_no_args(p):
+    """
+    func_prototype : FUNC ID LPAREN RPAREN typename
+    """
+    p[0] = FunctionPrototype(p[2], [], p[5], lineno=p.lineno(1))
+
+
+def p_parameters(p):
+    """
+    parameters : parameters COMMA parm_declaration
+    """
+    p[0] = p[1]
+    p[0].append(p[3])
+
+
+def p_parameter(p):
+    """
+    parameters : parm_declaration
+    """
+    p[0] = [p[1]]
+
+
+def p_parm_declaration(p):
+    """
+    parm_declaration : ID typename
+    """
+    p[0] = ParameterDeclaration(p[1], p[2], lineno=p.lineno(1))
+
+    # You need to implement the rest of the grammar rules here
+
+    # ----------------------------------------------------------------------
+    # DO NOT MODIFY
+    #
+    # catch-all error handling.   The following function gets called on any
+    # bad input.  See http://www.dabeaz.com/ply/ply.html#ply_nn31
+
+
 def p_error(p):
     if p:
         error(p.lineno, "Syntax error in input at token '%s'" % p.value)

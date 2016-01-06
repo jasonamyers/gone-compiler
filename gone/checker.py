@@ -34,7 +34,7 @@ need to check:
 
 2.  Types of literals
 
-    All literal symbols must be assigned a type of "int", "float", or "string".  
+    All literal symbols must be assigned a type of "int", "float", or "string".
     For example:
 
        const a = 42;         // Type "int"
@@ -68,7 +68,7 @@ need to check:
     float:    binary { +, -, *, /}, unary { +, -}
     string:   binary { + }, unary { }
 
-    Attempts to use unsupported operators should result in an error. 
+    Attempts to use unsupported operators should result in an error.
     For example:
 
         var string a = "Hello" + "World";     // OK
@@ -90,16 +90,36 @@ from .errors import error
 from .ast import *
 from . import types
 
+
 class SymbolTable(object):
-    '''
+    """
     Class representing a symbol table.  It should provide functionality
     for adding and looking up objects associated with identifiers. You
     could also add error checking for undefined or duplicate identifiers
     here.
 
     This class should not be complicated--think Python dictionaries.
-    '''
-    pass
+    """
+
+    def __init__(self):
+        self.symbols = {}
+
+    def add(self, name, node):
+        if name in self.symbols:
+            error(node.lineno, '%s was previously defined on %s' % (
+                name, getattr(self.symbols[name], 'lineno', 'I forgot where')))
+        else:
+            self.symbols[name] = node
+
+    def get(self, name):
+        if name not in self.symbols:
+            return None
+        else:
+            return self.symbols[name]
+
+    def get_all(self):
+        return [self.symbols[key] for key in self.symbols.keys()]
+
 
 class CheckProgramVisitor(NodeVisitor):
     '''
@@ -111,66 +131,149 @@ class CheckProgramVisitor(NodeVisitor):
     used different names in your parser.  You may need to add additional
     methods as needed.
     '''
+
     def __init__(self):
         # Initialize the symbol table
-        pass
+        self.symbols = SymbolTable()
 
         # Add built-in type names (int, float, string) to the symbol table
-        pass
+        self.symbols.add('int', types.int_type)
+        self.symbols.add('float', types.float_type)
+        self.symbols.add('string', types.string_type)
 
     def visit_Program(self, node):
         # 1. Visit all of the statements
         pass
 
-    def visit_Unaryop(self, node):
+    def visit_UnaryOperator(self, node):
+        print('UnaryOperator %r' % node)
+        self.visit(node.expr)
         # 1. Make sure that the operation is supported by the type
+        print('UnaryOperator %s' % node.op.__class__.__name__)
         # 2. Set the result type to the same as the operand
-        pass
 
-    def visit_Binop(self, node):
+    def visit_BinaryOperator(self, node):
+        print('BinaryOperator %r' % node)
+        self.visit(node.left)
+        self.visit(node.right)
+        node.type = node.left.type
+        if not node.left.type == node.right.type:
+            error(node.lineno, 'You can not %s a %s with a %s' % (
+                node.op, node.left.type, node.right.type))
         # 1. Make sure left and right operands have the same type
         # 2. Make sure the operation is supported
         # 3. Assign the result type to the result
-        pass
 
     def visit_AssignmentStatement(self, node):
+        print('%s: AssignmentStatement: %s' % (node.lineno, node.__dict__))
+        self.visit(node.store_location)
+        self.visit(node.expr)
         # 1. Check the location of the assignment
         # 2. Check that the left and right hand side types match
-        pass
+        if node.store_location.type != node.expr.type:
+            error(node.lineno, "Type error %s = %s" %
+                  (node.store_location.type.name, node.expr.type.name))
+        node.store_location.expr = node.expr
+        print([symbol.__dict__
+               for symbol in self.symbols.get_all()])
 
-    def visit_ConstDeclaration(self, node):
+    def visit_ConstantDeclaration(self, node):
+        print('%s: ConstantDeclaration: %s' % (node.lineno, node.__dict__))
+        symbol = self.symbols.get(node.name)
+        if symbol:
+            error(node.lineno, '%s from %i was already defined at %s' %
+                  (node.name, node.lineno, symbol.lineno))
+        else:
+            self.visit(node.expr)
+            node.type = node.expr.type
+            self.symbols.add(node.name, node)
         # 1. Check that the constant name is not already defined
         # 2. Add an entry to the symbol table
-        pass
 
-    def visit_VarDeclaration(self, node):
-        # 1. Check that the variable name is not already defined
-        # 2. Add an entry to the symbol table
-        # 3. Check that the type of the expression (if any) is the same
-        # 4. If there is no expression, set an initial value for the value
-        pass
+    def visit_VariableDeclaration(self, node):
+        print('%s: VariableDeclaration: %s' % (node.lineno, node.__dict__))
+        symbol = self.symbols.get(node.name)
+        if symbol:
+            error(node.lineno, '%s from %i was already defined at %s' %
+                  (node.name, node.lineno, symbol.lineno))
+        self.visit(node.typename)
+        node.type = node.typename.type
+        if node.expr:
+            self.visit(node.expr)
+            if node.expr.type != node.type:
+                error(node.lineno, '%s is of type %s and is being set to %s '
+                      'which is of type %s' % (node.name, node.type, node.expr,
+                                               node.expr.type))
+        else:
+            node.expr = Literal(node.type.default_value)
+            node.expr.type = node.type
+            node.type = node.typename.type
+            # 1. Check that the variable name is not already defined
+            # 2. Add an entry to the symbol table
+            # 3. Check that the type of the expression (if any) is the same
+        self.symbols.add(node.name, node)
+        print('Post Visit VariableDeclaration %s' % node.__dict__)
 
     def visit_Typename(self, node):
+        print('Visited Typename: %s' % node.__dict__)
+        symbol = self.symbols.get(node.name)
+        if not symbol or not isinstance(symbol, types.GoneType):
+            error(node.lineno, '%s is not a valid type at line %i' % (
+                node.name, node.lineno(1)))
         # 1. Make sure the typename is valid and that it's actually a type
-        # 2. Attach the type object from gone/types.c 
+        node.type = symbol
+        # 2. Attach the type object from gone/types.c
         pass
 
-    def visit_LoadLocation(self, node):
+    def visit_LoadVariable(self, node):
+        print('Visited LoadVariable: %r' % node.__dict__)
         # 1. Make sure the loaded location is valid.
-        # 2. Assign the appropriate type to the result
-        pass
+        symbol = self.symbols.get(node.name)
+        if not symbol:
+            error(node.lineno, '%s on line %i is not a valid variable to '
+                  'load data' % (node.name, node.lineno))
+        else:
+            if isinstance(symbol, (ConstantDeclaration, VariableDeclaration,
+                                   ParameterDeclaration)):
+                node.type = symbol.type
+            # 1. Make sure the typename is valid and that it's actually a type
+        node.symbol = symbol
 
-    def visit_StoreLocation(self, node):
+        # 2. Assign the appropriate type to the result
+
+    def visit_StoreVariable(self, node):
         # 1. Make sure the stored location allows assignment
+        print('Visited StoreVariable: %s' % node.__dict__)
+        symbol = self.symbols.get(node.name)
+        if not symbol:
+            error(node.lineno, '%s on line %i is not a valid variable to '
+                  'store data' % (node.name, node.lineno(1)))
+        elif isinstance(symbol, ConstantDeclaration):
+            error(node.lineno, '%s is a constant and is immutable' % node.name)
+        elif isinstance(symbol, (VariableDeclaration, ParameterDeclaration)):
+            node.type = symbol.type
+        # 1. Make sure the typename is valid and that it's actually a type
+
+        node.symbol = symbol
         pass
 
     def visit_Literal(self, node):
         # Attach an appropriate type to the literal
-        pass
+        if isinstance(node.value, int):
+            node.type = types.int_type
+        elif isinstance(node.value, float):
+            node.type = types.float_type
+        elif isinstance(node.value, str):
+            node.type = types.string_type
+        else:
+            error(node.lineno, '%r on line %i is not of a known type' % (
+                node.value, node.lineno))
 
+        print('%s: Literal: %r, %s' % (node.lineno, node.value, node.type))
 # ----------------------------------------------------------------------
-#                       DO NOT MODIFY ANYTHING BELOW       
+#                       DO NOT MODIFY ANYTHING BELOW
 # ----------------------------------------------------------------------
+
 
 def check_program(ast):
     '''
@@ -178,6 +281,7 @@ def check_program(ast):
     '''
     checker = CheckProgramVisitor()
     checker.visit(ast)
+
 
 def main():
     '''
@@ -195,7 +299,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-            
-
-
-

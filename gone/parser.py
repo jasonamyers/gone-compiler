@@ -33,7 +33,7 @@ parameters : parameters , parm_declaration
 
 parm_declaration : ID typename
 
-assign_statement : location = expression ;
+assign_statement : store_location = expression ;
 
 print_statement : PRINT expression ;
 
@@ -45,7 +45,7 @@ expression :  + expression
            | expression / expression
            | ( expression )
            | ID ( exprlist )
-           | location
+           | load_location
            | literal
 
 exprlist : | exprlist , expression
@@ -194,7 +194,7 @@ def p_expression_binary(p):
                | expression TIMES expression
                | expression DIVIDE expression
     """
-    p[0] = BinaryOperator(p[2], p[1], p[3])
+    p[0] = BinaryOperator(p[2], p[1], p[3], lineno=p.lineno(1))
 
 
 def p_expression(p):
@@ -241,16 +241,30 @@ def p_empty(p):
 
 def p_expression_location(p):
     """
-    expression : location
+    expression : load_location
     """
-    p[0] = LoadVariable(p[1])
+    p[0] = p[1]
 
 
 def p_assign_statement(p):
     """
-    assign_statement : location ASSIGN expression SEMI
+    assign_statement : store_location ASSIGN expression SEMI
     """
-    p[0] = AssignmentStatement(p[1], p[3])
+    p[0] = AssignmentStatement(p[1], p[3], lineno=p.lineno(2))
+
+
+def p_load_location(p):
+    """
+    load_location : ID
+    """
+    p[0] = LoadVariable(p[1], lineno=p.lineno(1))
+
+
+def p_store_location(p):
+    """
+    store_location : ID
+    """
+    p[0] = StoreVariable(p[1], lineno=p.lineno(1))
 
 
 def p_location(p):

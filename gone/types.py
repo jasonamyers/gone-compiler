@@ -36,34 +36,77 @@ other classes (e.g., the GoneType class), is sometimes known as
 a "metaclass."  
 '''
 
+
 class GoneType(object):
     '''
     Class that represents a type in the Gone language.  Types 
     are declared as instances of this type.
     '''
-    def __init__(self, name):
+
+    built_ins = {}
+
+    def __init__(self, name, default_value, binary_ops, unary_ops):
         '''
         You must implement yourself and figure out what else to store
         or define on subclasses.
         '''
         self.name = name
+        self.default_value = default_value
+        self.binary_ops = binary_ops
+        self.unary_ops = unary_ops
+        GoneType.built_ins[name] = self
 
-# Create specific instances of types. You will need to add
-# appropriate extra arguments depending on your definition of GoneType
+    def __str__(self):
+        return '%s' % self.name
 
-int_type = GoneType('int')
-float_type = GoneType('float')
-string_type = GoneType('string')
+    def lookup(cls, name):
+        if name in cls.built_ins:
+            return cls.built_ins[name]
+        else:
+            raise ValueError('%s is not a built in type' % name)
+
+    # Create specific instances of types. You will need to add
+    # appropriate extra arguments depending on your definition of GoneType
+
+int_type = GoneType(
+    'int',
+    default_value=0,
+    binary_ops={
+        '+': 'int',
+        '-': 'int',
+        '*': 'int',
+        '/': 'int'
+    },
+    unary_ops={
+        '+': 'int',
+        '-': 'int'
+    }
+)
+
+float_type = GoneType(
+    'float',
+    default_value=0.0,
+    binary_ops={
+        '+': 'float',
+        '-': 'float',
+        '*': 'float',
+        '/': 'float'
+    },
+    unary_ops={
+        '+': 'float',
+        '-': 'float'
+    }
+)
+
+string_type = GoneType(
+    'string',
+    default_value='',
+    binary_ops={
+        '+': 'string'
+    },
+    unary_ops={}
+)
 
 # In your type checking code, you will probably need to reference the
 # above type objects.   Think of how you how want to provide access to them.
 # Maybe create a dictionary or set that holds the defined types.
-
-
-
-
-          
-
-
-
-

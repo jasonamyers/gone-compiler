@@ -12,7 +12,7 @@ Single Static Assignment
 The first problem is how to decompose complex expressions into
 something that can be handled more simply.  One way to do this is
 to decompose all expressions into a sequence of simple assignments
-involving binary or unary operations.  
+involving binary or unary operations.
 
 As an example, suppose you had a mathematical expression like this:
 
@@ -42,7 +42,7 @@ to evaluate 10+20+30, you would have code like this:
         int_11 = 30
         int_12 = int_11 + int_11
 
-SSA is meant to mimic the low-level instructions one might carry out 
+SSA is meant to mimic the low-level instructions one might carry out
 on a CPU.  For example, the above instructions might be translated to
 low-level machine instructions (for a hypothetical CPU) like this:
 
@@ -58,7 +58,7 @@ Another benefit of SSA is that it is very easy to encode and
 manipulate using simple data structures such as tuples. For example,
 you could encode the above sequence of operations as a list like this:
 
-       [ 
+       [
          ('movi', 2, 'int_1'),
          ('movi', 3, 'int_2'),
          ('movi', 4, 'int_3'),
@@ -86,7 +86,7 @@ emit code like this:
        a_1 = int_1 + int_2
        int_3 = 2
        b_1 = int_3 * a_1
-       int_4 = 1 
+       int_4 = 1
        a_2 = a_1 + int_4
        ...
 
@@ -112,9 +112,9 @@ variables and code generation will be easier.
 
 A Word About Types
 ==================
-At a low-level, CPUs can only operate a few different kinds of 
+At a low-level, CPUs can only operate a few different kinds of
 data such as ints and floats.  Because the semantics of the
-low-level types might vary slightly, you'll need to take 
+low-level types might vary slightly, you'll need to take
 some steps to handle them separately.
 
 In our intermediate code, we're simply going to tag temporary variable
@@ -146,7 +146,7 @@ Your Task
 =========
 Your task is as follows: Write a AST Visitor() class that takes an
 Gone program and flattens it to a single sequence of SSA code instructions
-represented as tuples of the form 
+represented as tuples of the form
 
        (operation, operands, ..., destination)
 
@@ -154,12 +154,15 @@ To start, your SSA code should only contain the following operators:
 
        ('alloc_type',varname)             # Allocate a variable of a given type
        ('literal_type', value, target)    # Load a literal value into target
-       ('load_type', varname, target)     # Load the value of a variable into target
-       ('store_type',source, varname)     # Store the value of source into varname
+       # Load the value of a variable into target
+       ('load_type', varname, target)
+       # Store the value of source into varname
+       ('store_type',source, varname)
        ('add_type', left, right, target ) # target = left + right
        ('sub_type',left,right,target)     # target = left - right
        ('mul_type',left,right,target)     # target = left * right
-       ('div_type',left,right,target)     # target = left / right  (integer truncation)
+       # target = left / right  (integer truncation)
+       ('div_type',left,right,target)
        ('uadd_type',source,target)        # target = +source
        ('uneg_type',source,target)        # target = -source
        ('print_type',source)              # Print value of source
@@ -184,44 +187,46 @@ from collections import defaultdict
 # the SSA code.   This is easy to do using dictionaries:
 
 binary_ops = {
-    '+' : 'add',
-    '-' : 'sub',
-    '*' : 'mul',
-    '/' : 'div',
+    '+': 'add',
+    '-': 'sub',
+    '*': 'mul',
+    '/': 'div',
 }
 
 unary_ops = {
-    '+' : 'uadd',
-    '-' : 'usub'
+    '+': 'uadd',
+    '-': 'usub'
 }
 
 # Implement the following Node Visitor class so that it creates
 # a sequence of SSA instructions in the form of tuples.  Use the
 # above description of the allowed op-codes as a guide.
 
+
 class GenerateCode(ast.NodeVisitor):
     '''
     Node visitor class that creates 3-address encoded instruction sequences.
     '''
+
     def __init__(self):
-         super(GenerateCode, self).__init__()
+        super(GenerateCode, self).__init__()
 
-         # version dictionary for temporaries
-         self.versions = defaultdict(int)
-         
-         # The generated code (list of tuples)
-         self.code = []
+        # version dictionary for temporaries
+        self.versions = defaultdict(int)
 
-         # A list of external declarations (and types)
-         self.externs = []
+        # The generated code (list of tuples)
+        self.code = []
+
+        # A list of external declarations (and types)
+        self.externs = []
 
     def new_temp(self, typeobj):
-         '''
-         Create a new temporary variable of a given type.
-         '''
-         name = "__%s_%d" % (typeobj.name, self.versions[typeobj.name])
-         self.versions[typeobj.name] += 1
-         return name
+        '''
+        Create a new temporary variable of a given type.
+        '''
+        name = "__%s_%d" % (typeobj.name, self.versions[typeobj.name])
+        self.versions[typeobj.name] += 1
+        return name
 
     # You must implement visit_Nodename methods for all of the other
     # AST nodes.  In your code, you will need to make instructions
@@ -231,17 +236,18 @@ class GenerateCode(ast.NodeVisitor):
     # on the names of the AST nodes you've defined.
 
     def visit_Literal(self, node):
-        # Create a new temporary variable name 
+        # Create a new temporary variable name
         target = self.new_temp(node.type)
 
         # Make the SSA opcode and append to list of generated instructions
-        inst = ('literal_'+node.type.name, node.value, target)
+        inst = ('literal_' + node.type.name, node.value, target)
         self.code.append(inst)
 
-        # Save the name of the temporary variable where the value was placed 
+        # Save the name of the temporary variable where the value was placed
         node.gen_location = target
 
-    def visit_Binop(self, node):
+    def visit_BinaryOperator(self, node):
+        # print('visit_BinaryOperator %s' % node)
         # Visit the left and right expressions
         self.visit(node.left)
         self.visit(node.right)
@@ -251,7 +257,8 @@ class GenerateCode(ast.NodeVisitor):
 
         # Create the opcode and append to list
         opcode = binary_ops[node.op] + "_" + node.left.type.name
-        inst = (opcode, node.left.gen_location, node.right.gen_location, target)
+        inst = (opcode, node.left.gen_location,
+                node.right.gen_location, target)
         self.code.append(inst)
 
         # Store location of the result on the node
@@ -265,28 +272,114 @@ class GenerateCode(ast.NodeVisitor):
         inst = ('print_' + node.expr.type.name, node.expr.gen_location)
         self.code.append(inst)
 
-# Project 6 - Comparisons/Booleans
-# --------------------------------
-# You will need to extend this code to support comparisons and boolean
-# operators.  This will mostly involve the addition of new opcodes
-#
-# Project 7 - Control Flow
-# ------------------------
-# You will extend this code to emit code in basic blocks that are linked
-# together.  Most of the underlying code will remain unchanged except that 
-# instructions will be append to a block.  You'll also need to add support
-# for if/else statements and while loops.
-#
-# Project 8 - Functions
-# ---------------------
-# You will extend this code to organize the emitted code into a functions.
-# Each function will consist of a name and a starting block.   Any code
-# emitted outside of a function needs to be placed into a default function
-# called __init(). 
+    def visit_LoadVariable(self, node):
+        """
+        ('load_type', varname, target)
+        """
+        target = self.new_temp(node.type)
+        opcode = 'load_' + node.type.name
+        inst = (opcode, node.name, target)
+        self.code.append(inst)
+        node.gen_location = target
 
-# ----------------------------------------------------------------------
-#                          TESTING/MAIN PROGRAM
-# ----------------------------------------------------------------------
+    def visit_UnaryOperator(self, node):
+        """
+        ('uadd_type',source,target)  # target = +source
+        ('uneg_type',source,target)  # target = -source
+        """
+        self.visit(node.expr)
+        target = self.new_temp(node.type)
+        opcode = unary_ops[node.op] + '_' + node.type.name
+        inst = (opcode, node.expr.gen_location, target)
+        self.code.append(inst)
+        node.gen_location = target
+
+    def visit_ConstantDeclaration(self, node):
+        """
+        ('alloc_type',varname)
+        ('store_type',source, varname)
+        """
+        # print('visit_ConstantDeclaration')
+        opcode = 'alloc_' + node.type.name
+        inst = (opcode, node.name)
+        self.code.append(inst)
+        self.visit(node.expr)
+        opcode = 'store_' + node.type.name
+        inst = (opcode, node.expr.gen_location, node.name)
+        self.code.append(inst)
+
+    def visit_VariableDeclaration(self, node):
+        """
+        ('alloc_type',varname)
+        ('store_type',source, varname)
+        """
+        # print('visit_VariableDeclaration')
+        opcode = 'alloc_' + node.type.name
+        inst = (opcode, node.name)
+        self.code.append(inst)
+        if node.expr:
+            self.visit(node.expr)
+            opcode = 'store_' + node.type.name
+            inst = (opcode, node.expr.gen_location, node.name)
+            self.code.append(inst)
+
+    def visit_AssignmentStatement(self, node):
+        """
+        ('store_type',source, varname)
+        """
+        self.visit(node.expr)
+        self.visit(node.store_location)
+
+    def visit_StoreVariable(self, node):
+        """
+        ('store_type',source, varname)
+        """
+        # print('visit_StoreVariable')
+        opcode = 'store_' + node.type.name
+        inst = (opcode, node.expr.gen_location, node.name)
+        self.code.append(inst)
+
+    def visit_ExternFunctionDeclaration(self, node):
+        # print('visit_ExternFunctionDeclaration')
+        self.visit(node.prototype)
+        paramtypes = [p.type.name for p in node.prototype.parameters]
+        inst = ('extern_func', node.prototype.name,
+                *paramtypes, node.type.name)
+        self.code.append(inst)
+
+    def visit_FunctionCall(self, node):
+        # print('visit_FunctionCall')
+        target = self.new_temp(node.type)
+        args = []
+        for arg in node.arglist:
+            self.visit(arg)
+            args.append(arg.gen_location)
+        inst = ('call_func', node.name) + tuple(args) + (target,)
+        self.code.append(inst)
+        node.gen_location = target
+        # Project 6 - Comparisons/Booleans
+        # --------------------------------
+        # You will need to extend this code to support comparisons and boolean
+        # operators.  This will mostly involve the addition of new opcodes
+        #
+        # Project 7 - Control Flow
+        # ------------------------
+        # You will extend this code to emit code in basic blocks that are linked
+        # together.  Most of the underlying code will remain unchanged except that
+        # instructions will be append to a block.  You'll also need to add support
+        # for if/else statements and while loops.
+        #
+        # Project 8 - Functions
+        # ---------------------
+        # You will extend this code to organize the emitted code into a functions.
+        # Each function will consist of a name and a starting block.   Any code
+        # emitted outside of a function needs to be placed into a default function
+        # called __init().
+
+        # ----------------------------------------------------------------------
+        #                          TESTING/MAIN PROGRAM
+        # ----------------------------------------------------------------------
+
 
 def compile_ircode(source):
     '''
@@ -305,9 +398,10 @@ def compile_ircode(source):
         gen.visit(ast)
 
         # !!!  This part will need to be changed slightly in Projects 7/8
-        return gen.code    
+        return gen.code
     else:
         return []
+
 
 def main():
     import sys
@@ -321,7 +415,7 @@ def main():
 
     # !!! This part will need to be changed slightly in Projects 7/8
     for instr in code:
-        print(code)
+        print(instr)
 
 if __name__ == '__main__':
     main()

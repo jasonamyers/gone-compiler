@@ -193,14 +193,14 @@ class FunctionPrototype(AST):
             self.name, self.parameters, self.typename)
 
 
-class ExternFunctionDeclartion(AST):
+class ExternFunctionDeclaration(AST):
     '''
-    An external function declartion
+    An external function declaration
     '''
     _fields = ['prototype']
 
     def __repr__(self):
-        return 'ExternFunctionDeclartion: %r' % self.prototype
+        return 'ExternFunctionDeclaration: %r' % self.prototype
 # You need to add more nodes here.  Suggested nodes include
 # BinaryOperator, UnaryOperator, ConstDeclaration, VarDeclaration,
 # AssignmentStatement, etc...

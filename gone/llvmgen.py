@@ -20,7 +20,7 @@ Further instructions are contained in the comments below.
 from llvmlite.ir import (
     Module, IRBuilder, Function, IntType, DoubleType, VoidType, Constant, GlobalVariable,
     FunctionType
-    )
+)
 
 # Declare the LLVM type objects that you want to use for the low-level
 # in our intermediate code.  Basically, you're going to need to
@@ -28,31 +28,31 @@ from llvmlite.ir import (
 # to the types being used the intermediate code being created by
 # the ircode.py file.
 
-int_type    = IntType(32)         # 32-bit integer
-float_type  = DoubleType()        # 64-bit float
+int_type = IntType(32)         # 32-bit integer
+float_type = DoubleType()        # 64-bit float
 string_type = None                # Up to you (leave until the end)
 
-void_type   = VoidType()          # Void type.  This is a special type
-                                  # used for internal functions returning
-                                  # no value
+void_type = VoidType()          # Void type.  This is a special type
+# used for internal functions returning
+# no value
 
 # A dictionary that maps the typenames used in IR to the corresponding
 # LLVM types defined above.   This is mainly provided for convenience
 # so you can quickly look up the type object given its type name.
 typemap = {
-    'int' : int_type,
-    'float' : float_type,
-    'string' : string_type,
+    'int': int_type,
+    'float': float_type,
+    'string': string_type,
 }
 
-# The following class is going to generate the LLVM instruction stream.  
+# The following class is going to generate the LLVM instruction stream.
 # The basic features of this class are going to mirror the experiments
 # you tried in Exercise 5.  The execution model is somewhat similar
 # to the visitor class.
 #
 # Given a sequence of instruction tuples such as this:
 #
-#         code = [ 
+#         code = [
 #              ('literal_int', 1, '_int_1'),
 #              ('literal_int', 2, '_int_2'),
 #              ('add_int', '_int_1', '_int_2, '_int_3')
@@ -69,9 +69,11 @@ typemap = {
 #
 #    Internally, you'll need to track variables, constants and other
 #    objects being created.  Use a Python dictionary to emulate
-#    storage. 
+#    storage.
+
 
 class GenerateLLVM(object):
+
     def __init__(self, name='module'):
         # Perform the basic LLVM initialization.  You need the following parts:
         #
@@ -110,14 +112,13 @@ class GenerateLLVM(object):
         #      ('add_int', 'int_1','int_4','int_5')
         #      ('store_int', 'int_5', 'a')
         #
-        # The self.temp dictionary below is used to map names such as 'int_1', 
+        # The self.temp dictionary below is used to map names such as 'int_1',
         # 'int_2' to their corresponding LLVM values.  Essentially, every time
         # you make anything in LLVM, it gets stored here.
         self.temps = {}
 
         # Initialize the runtime library functions (see below)
         self.declare_runtime_library()
-
 
     def declare_runtime_library(self):
         # Certain functions such as I/O and string handling are often easier
@@ -127,14 +128,16 @@ class GenerateLLVM(object):
         # functions are implemented in C in a separate file gonert.c
 
         self.runtime = {}
-        
+
         # Declare printing functions
         self.runtime['_print_int'] = Function(self.module,
-                                              FunctionType(void_type, [int_type]),
+                                              FunctionType(
+                                                  void_type, [int_type]),
                                               name="_print_int")
 
         self.runtime['_print_float'] = Function(self.module,
-                                                FunctionType(void_type, [float_type]),
+                                                FunctionType(
+                                                    void_type, [float_type]),
                                                 name="_print_float")
 
     def generate_code(self, ircode):
@@ -144,13 +147,14 @@ class GenerateLLVM(object):
         # form self.emit_opcode(args)
 
         for opcode, *args in ircode:
-            if hasattr(self, 'emit_'+opcode):
-                getattr(self, 'emit_'+opcode)(*args)
+            if hasattr(self, 'emit_' + opcode):
+                getattr(self, 'emit_' + opcode)(*args)
             else:
-                print('Warning: No emit_'+opcode+'() method')
+                print('Warning: No emit_' + opcode + '() method')
 
         # Add a return statement.  Note, at this point, we don't really have
-        # user-defined functions so this is a bit of hack--it may be removed later.
+        # user-defined functions so this is a bit of hack--it may be removed
+        # later.
         self.builder.ret_void()
 
     # ----------------------------------------------------------------------
@@ -163,8 +167,11 @@ class GenerateLLVM(object):
         self.temps[target] = Constant(int_type, value)
 
     def emit_literal_float(self, value, target):
-        pass                # You must implement
-    
+        self.temps[target] = Constant(float_type, value)
+
+    # def emit_literal_string(self, value, target):
+    #     self.temps[target] = Constant(string_type, value)
+
     # Allocation of variables.  Declare as global variables and set to
     # a sensible initial value.
     def emit_alloc_int(self, name):
@@ -173,8 +180,14 @@ class GenerateLLVM(object):
         self.vars[name] = var
 
     def emit_alloc_float(self, name):
-        pass                # You must implement
+        var = GlobalVariable(self.module, float_type, name=name)
+        var.initializer = Constant(float_type, 0)
+        self.vars[name] = var
 
+    # def emit_alloc_string(self, name):
+    #     var = GlobalVariable(self.module, string_type, name=name)
+    #     var.initializer = Constant(string_type, "")
+    #     self.vars[name] = var
 
     # Load/store instructions for variables.  Load needs to pull a
     # value from a global variable and store in a temporary. Store
@@ -183,69 +196,84 @@ class GenerateLLVM(object):
         self.temps[target] = self.builder.load(self.vars[name], target)
 
     def emit_load_float(self, name, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.load(self.vars[name], target)
 
     def emit_store_int(self, source, target):
         self.builder.store(self.temps[source], self.vars[target])
 
     def emit_store_float(self, source, target):
-        pass                 # You must implement
-
+        self.builder.store(self.temps[source], self.vars[target])
 
     # Binary + operator
     def emit_add_int(self, left, right, target):
-        self.temps[target] = self.builder.add(self.temps[left], self.temps[right], target)
+        self.temps[target] = self.builder.add(
+            self.temps[left], self.temps[right], target)
 
     def emit_add_float(self, left, right, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.fadd(
+            self.temps[left], self.temps[right], target)
 
     # Binary - operator
     def emit_sub_int(self, left, right, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.sub(
+            self.temps[left], self.temps[right], target)
 
     def emit_sub_float(self, left, right, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.fsub(
+            self.temps[left], self.temps[right], target)
 
     # Binary * operator
     def emit_mul_int(self, left, right, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.mul(
+            self.temps[left], self.temps[right], target)
 
     def emit_mul_float(self, left, right, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.fmul(
+            self.temps[left], self.temps[right], target)
 
     # Binary / operator
     def emit_div_int(self, left, right, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.sdiv(
+            self.temps[left], self.temps[right], target)
 
     def emit_div_float(self, left, right, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.fdiv(
+            self.temps[left], self.temps[right], target)
 
     # Unary + operator
     def emit_uadd_int(self, source, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.add(
+            Constant(int_type, 0),
+            self.temps[source],
+            target)
 
     def emit_uadd_float(self, source, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.fadd(
+            Constant(float_type, 0.0),
+            self.temps[source],
+            target)
 
     # Unary - operator
     def emit_usub_int(self, source, target):
-        pass                 # You must implement
         self.temps[target] = self.builder.sub(
             Constant(int_type, 0),
             self.temps[source],
             target)
 
     def emit_usub_float(self, source, target):
-        pass                 # You must implement
+        self.temps[target] = self.builder.fsub(
+            Constant(float_type, 0.0),
+            self.temps[source],
+            target)
 
     # Print statements
     def emit_print_int(self, source):
         self.builder.call(self.runtime['_print_int'], [self.temps[source]])
 
     def emit_print_float(self, source):
-        pass                 # You must implement
+        self.builder.call(self.runtime['_print_float'], [self.temps[source]])
 
-    # Extern function declaration.  
+    # Extern function declaration.
     def emit_extern_func(self, name, rettypename, *parmtypenames):
         rettype = typemap[rettypename]
         parmtypes = [typemap[pname] for pname in parmtypenames]
@@ -254,16 +282,21 @@ class GenerateLLVM(object):
 
     # Call an external function.
     def emit_call_func(self, funcname, *args):
-        pass                 # You must implement
+        target = args[-1]
+        func = self.vars[funcname]
+        argvals = [self.temps[name] for name in args[:-1]]
+        self.temps[target] = self.builder.call(func, argvals)
+
 
 #######################################################################
 #                      TESTING/MAIN PROGRAM
 #######################################################################
 
+
 def compile_llvm(source):
     from .ircode import compile_ircode
 
-    # Compile intermediate code 
+    # Compile intermediate code
     # !!! This needs to be changed in Project 7/8
     code = compile_ircode(source)
 
@@ -275,6 +308,7 @@ def compile_llvm(source):
     generator.generate_code(code)
 
     return str(generator.module)
+
 
 def main():
     import sys
@@ -289,9 +323,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-        
-        
-        

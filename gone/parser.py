@@ -215,7 +215,7 @@ def p_function_call_no_args(p):
     """
     expression : ID LPAREN RPAREN
     """
-    p[0] = FunctionCall(p[1], None)
+    p[0] = FunctionCall(p[1], [])
 
 
 def p_exprlist(p):
@@ -292,7 +292,7 @@ def p_typename(p):
     """
     typename : ID
     """
-    p[0] = Typename(p[1])
+    p[0] = Typename(p[1], lineno=p.lineno(1))
 
 
 def p_variable_declaration(p):
@@ -322,7 +322,7 @@ def p_extern_declaration(p):
     """
     extern_declaration : EXTERN func_prototype SEMI
     """
-    p[0] = ExternFunctionDeclartion(p[1])
+    p[0] = ExternFunctionDeclaration(p[2], lineno=p.lineno(1))
 
 
 def p_func_prototype(p):

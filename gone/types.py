@@ -2,7 +2,7 @@
 '''
 Project 3: Type System
 ======================
-This file implements the Gone type system.  There is a lot of 
+This file implements the Gone type system.  There is a lot of
 flexibility with the implementation, but start by defining a
 class representing a type.
 
@@ -32,14 +32,14 @@ with symbol tables and other code that checks for type names. This
 might require some coding in 'checker.py'.
 
 Interesting Aside:  A class that represents instances of types or
-other classes (e.g., the GoneType class), is sometimes known as 
-a "metaclass."  
+other classes (e.g., the GoneType class), is sometimes known as
+a "metaclass."
 '''
 
 
 class GoneType(object):
     '''
-    Class that represents a type in the Gone language.  Types 
+    Class that represents a type in the Gone language.  Types
     are declared as instances of this type.
     '''
 
@@ -105,6 +105,21 @@ string_type = GoneType(
         '+': 'string'
     },
     unary_ops={}
+)
+
+error_type = GoneType(
+    'error',
+    default_value=None,
+    binary_ops={
+        '+': '<error>',
+        '-': '<error>',
+        '*': '<error>',
+        '/': '<error>'
+    },
+    unary_ops={
+        '+': '<error>',
+        '-': '<error>'
+    }
 )
 
 # In your type checking code, you will probably need to reference the

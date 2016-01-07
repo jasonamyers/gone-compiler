@@ -146,39 +146,60 @@ class CheckProgramVisitor(NodeVisitor):
         pass
 
     def visit_UnaryOperator(self, node):
-        print('UnaryOperator %r' % node)
         self.visit(node.expr)
         # 1. Make sure that the operation is supported by the type
-        print('UnaryOperator %s' % node.op.__class__.__name__)
+        unary_ops = node.expr.type.unary_ops
+        if node.op not in unary_ops.keys():
+            error(node.lineno, '%s is not a valid unary operator for type %s' %
+                  (node.op, node.expr.type))
         # 2. Set the result type to the same as the operand
+        node.type = node.expr.type
 
     def visit_BinaryOperator(self, node):
-        print('BinaryOperator %r' % node)
+        # print('BinaryOperator %r' % node)
         self.visit(node.left)
         self.visit(node.right)
-        node.type = node.left.type
-        if not node.left.type == node.right.type:
-            error(node.lineno, 'You can not %s a %s with a %s' % (
-                node.op, node.left.type, node.right.type))
         # 1. Make sure left and right operands have the same type
+        if not node.left.type == node.right.type:
+            error(node.lineno, 'You can not %s %s with %s' % (
+                node.op, node.left.type, node.right.type))
         # 2. Make sure the operation is supported
+        left_bin_ops = set(node.left.type.binary_ops.keys())
+        bin_ops = left_bin_ops.intersection(
+            set(node.right.type.binary_ops.keys()))
+        # print(bin_ops)
+        if node.op not in bin_ops:
+            error(node.lineno, 'The binary operation %s is not supported '
+                  'between %s and %s types' % (node.op, node.left.type,
+                                               node.right.type))
         # 3. Assign the result type to the result
+        node.type = node.left.type
 
     def visit_AssignmentStatement(self, node):
-        print('%s: AssignmentStatement: %s' % (node.lineno, node.__dict__))
-        self.visit(node.store_location)
-        self.visit(node.expr)
+        # print('%s: AssignmentStatement: %s' % (node.lineno, node.__dict__))
         # 1. Check the location of the assignment
-        # 2. Check that the left and right hand side types match
-        if node.store_location.type != node.expr.type:
-            error(node.lineno, "Type error %s = %s" %
-                  (node.store_location.type.name, node.expr.type.name))
-        node.store_location.expr = node.expr
-        print([symbol.__dict__
-               for symbol in self.symbols.get_all()])
+        symbol = self.symbols.get(node.store_location.name)
+        if not symbol:
+            error(node.lineno, '%s was not previously defined' %
+                  node.store_location.name)
+        else:
+            self.visit(node.store_location)
+            if isinstance(node.store_location.symbol, ConstantDeclaration):
+                error(node.lineno,
+                      '%s is a constant and is immutable' %
+                      node.store_location.name)
+            else:
+                self.visit(node.expr)
+                # 2. Check that the left and right hand side types match
+                if node.store_location.type != node.expr.type:
+                    error(node.lineno, "Can not store type %s in type %s" %
+                          (node.store_location.type.name, node.expr.type.name))
+                else:
+                    node.store_location.expr = node.expr
 
     def visit_ConstantDeclaration(self, node):
-        print('%s: ConstantDeclaration: %s' % (node.lineno, node.__dict__))
+        # print('%s: ConstantDeclaration: %s' % (node.lineno, node.__dict__))
+        # 1. Check that the constant name is not already defined
         symbol = self.symbols.get(node.name)
         if symbol:
             error(node.lineno, '%s from %i was already defined at %s' %
@@ -186,52 +207,52 @@ class CheckProgramVisitor(NodeVisitor):
         else:
             self.visit(node.expr)
             node.type = node.expr.type
+            # 2. Add an entry to the symbol table
             self.symbols.add(node.name, node)
-        # 1. Check that the constant name is not already defined
-        # 2. Add an entry to the symbol table
 
     def visit_VariableDeclaration(self, node):
-        print('%s: VariableDeclaration: %s' % (node.lineno, node.__dict__))
+        # print('%s: VariableDeclaration: %s' % (node.lineno, node.__dict__))
+        # 1. Check that the variable name is not already defined
         symbol = self.symbols.get(node.name)
         if symbol:
             error(node.lineno, '%s from %i was already defined at %s' %
                   (node.name, node.lineno, symbol.lineno))
         self.visit(node.typename)
-        node.type = node.typename.type
-        if node.expr:
-            self.visit(node.expr)
-            if node.expr.type != node.type:
-                error(node.lineno, '%s is of type %s and is being set to %s '
-                      'which is of type %s' % (node.name, node.type, node.expr,
-                                               node.expr.type))
-        else:
-            node.expr = Literal(node.type.default_value)
-            node.expr.type = node.type
+        if getattr(node.typename, 'type'):
             node.type = node.typename.type
-            # 1. Check that the variable name is not already defined
+            if node.expr:
+                self.visit(node.expr)
+                if node.expr.type != node.type:
+                    error(node.lineno, '%s is of type %s and is being set to %s '
+                          'which is of type %s' % (node.name, node.type, node.expr,
+                                                   node.expr.type))
+            else:
+                node.expr = Literal(node.type.default_value)
+                node.expr.type = node.type
             # 2. Add an entry to the symbol table
             # 3. Check that the type of the expression (if any) is the same
-        self.symbols.add(node.name, node)
-        print('Post Visit VariableDeclaration %s' % node.__dict__)
+            self.symbols.add(node.name, node)
+        # print('Post Visit VariableDeclaration %s' % node.__dict__)
 
     def visit_Typename(self, node):
-        print('Visited Typename: %s' % node.__dict__)
+        # print('Visited Typename: %s' % node.__dict__)
         symbol = self.symbols.get(node.name)
         if not symbol or not isinstance(symbol, types.GoneType):
             error(node.lineno, '%s is not a valid type at line %i' % (
-                node.name, node.lineno(1)))
+                node.name, node.lineno))
         # 1. Make sure the typename is valid and that it's actually a type
         node.type = symbol
         # 2. Attach the type object from gone/types.c
         pass
 
     def visit_LoadVariable(self, node):
-        print('Visited LoadVariable: %r' % node.__dict__)
+        # print('Visited LoadVariable: %r' % node.__dict__)
         # 1. Make sure the loaded location is valid.
         symbol = self.symbols.get(node.name)
         if not symbol:
             error(node.lineno, '%s on line %i is not a valid variable to '
                   'load data' % (node.name, node.lineno))
+            node.type = types.error_type
         else:
             if isinstance(symbol, (ConstantDeclaration, VariableDeclaration,
                                    ParameterDeclaration)):
@@ -243,11 +264,11 @@ class CheckProgramVisitor(NodeVisitor):
 
     def visit_StoreVariable(self, node):
         # 1. Make sure the stored location allows assignment
-        print('Visited StoreVariable: %s' % node.__dict__)
+        # print('Visited StoreVariable: %s' % node.__dict__)
         symbol = self.symbols.get(node.name)
         if not symbol:
             error(node.lineno, '%s on line %i is not a valid variable to '
-                  'store data' % (node.name, node.lineno(1)))
+                  'store data' % (node.name, node.lineno))
         elif isinstance(symbol, ConstantDeclaration):
             error(node.lineno, '%s is a constant and is immutable' % node.name)
         elif isinstance(symbol, (VariableDeclaration, ParameterDeclaration)):
@@ -255,7 +276,6 @@ class CheckProgramVisitor(NodeVisitor):
         # 1. Make sure the typename is valid and that it's actually a type
 
         node.symbol = symbol
-        pass
 
     def visit_Literal(self, node):
         # Attach an appropriate type to the literal
@@ -268,8 +288,39 @@ class CheckProgramVisitor(NodeVisitor):
         else:
             error(node.lineno, '%r on line %i is not of a known type' % (
                 node.value, node.lineno))
+        # print('Visited Literal: %s' % node.value)
 
-        print('%s: Literal: %r, %s' % (node.lineno, node.value, node.type))
+    def visit_ExternFunctionDeclaration(self, node):
+        self.visit(node.prototype)
+        node.type = node.prototype.type
+        # print('Visited ExternFunctionDeclaration: %s' % node.__dict__)
+
+    def visit_FunctionPrototype(self, node):
+        for param in node.parameters:
+            self.visit(param)
+        self.visit(node.typename)
+        node.type = node.typename.type
+        self.symbols.add(node.name, node)
+        # print('Visited FunctionPrototype: %s' % node.__dict__)
+
+    def visit_ParameterDeclaration(self, node):
+        # 1. Visit the typename and propagate types
+        self.visit(node.typename)
+        node.type = node.typename.type
+
+    def visit_FunctionCall(self, node):
+        # print(node.__dict__)
+        symbol = self.symbols.get(node.name)
+        if not symbol:
+            error(node.lineno, '%s on line %i is not a known function' %
+                  (node.name, node.lineno(1)))
+        else:
+            for arg in node.arglist:
+                self.visit(arg)
+            node.type = symbol.type
+
+        # print('Visited FunctionCall: %s' % node.__dict__)
+
 # ----------------------------------------------------------------------
 #                       DO NOT MODIFY ANYTHING BELOW
 # ----------------------------------------------------------------------

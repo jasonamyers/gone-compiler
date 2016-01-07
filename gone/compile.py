@@ -20,6 +20,7 @@ from .errors import errors_reported
 # Name of the runtime library
 _rtlib = os.path.join(os.path.dirname(__file__), 'gonert.c')
 
+
 def main():
     if len(sys.argv) != 2:
         sys.stderr.write("Usage: python3 -m gone.compile filename\n")
@@ -31,7 +32,7 @@ def main():
         with tempfile.NamedTemporaryFile(suffix='.ll') as f:
             f.write(llvm_code.encode('utf-8'))
             f.flush()
-            subprocess.check_output(['clang',  f.name, _rtlib])
+            subprocess.check_output(['clang',  f.name, _rtlib, '-lm'])
 
             # Use this version when you get to Project 8
             # subprocess.check_output(['clang', '-DNEED_MAIN', f.name, _rtlib])

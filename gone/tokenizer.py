@@ -114,9 +114,9 @@ tokens = [
 
     # Operators and delimiters
     'PLUS', 'MINUS', 'TIMES', 'DIVIDE',
-    'ASSIGN', 'SEMI', 'LPAREN', 'RPAREN', 
+    'ASSIGN', 'SEMI', 'LPAREN', 'RPAREN',
     'COMMA', 'LBRACE', 'RBRACE',
-    
+
     # Literals
     'INTEGER', 'FLOAT', 'STRING',
 ]
@@ -124,32 +124,32 @@ tokens = [
 # ----------------------------------------------------------------------
 # Ignored characters (whitespace)
 #
-# The following characters are ignored completely by the lexer. 
+# The following characters are ignored completely by the lexer.
 # Do not change.
 
 t_ignore = ' \t\r'
 
 # ----------------------------------------------------------------------
 # *** YOU MUST COMPLETE : write the regexs indicated below ***
-# 
-# Tokens for simple symbols: + - * / = ( ) ; 
+#
+# Tokens for simple symbols: + - * / = ( ) ;
 
-t_PLUS      = r'\+'
-t_MINUS     = r'\-'
-t_TIMES     = r'\*'
-t_DIVIDE    = r'\/'
-t_ASSIGN    = r'='
-t_SEMI      = r';'
-t_LPAREN    = r'\('
-t_RPAREN    = r'\)'
-t_COMMA     = r','
-t_LBRACE    = r'{'
-t_RBRACE    = r'}'
+t_PLUS = r'\+'
+t_MINUS = r'\-'
+t_TIMES = r'\*'
+t_DIVIDE = r'\/'
+t_ASSIGN = r'='
+t_SEMI = r';'
+t_LPAREN = r'\('
+t_RPAREN = r'\)'
+t_COMMA = r','
+t_LBRACE = r'{'
+t_RBRACE = r'}'
 
 # ----------------------------------------------------------------------
 # *** YOU MUST COMPLETE : write the regexs and additional code below ***
 #
-# Tokens for literals, INTEGER, FLOAT, STRING. 
+# Tokens for literals, INTEGER, FLOAT, STRING.
 
 # Floating point constant.   You must recognize floating point numbers in
 # formats as shown in the following examples:
@@ -157,16 +157,20 @@ t_RBRACE    = r'}'
 #   1.23, 1.23e1, 1.23e+1, 1.23e-1, 123., .123, 1e1, 0.
 #
 # The value should be converted to a Python float when lexed
+
+
 def t_FLOAT(t):
     r'[+-]?(?=\d*[.eE])(?=\.?\d)\d*\.?\d*(?:[eE][+-]?\d+)?'
     t.value = float(t.value)               # Conversion to Python float
     return t
 
 # Integer constant. For example:
-# 
-#     1234            
+#
+#     1234
 
 # The value should be converted to a Python int when lexed.
+
+
 def t_INTEGER(t):
     r'\d+'
     # Conversion to a Python int
@@ -179,7 +183,7 @@ def t_INTEGER(t):
 #     "Hello World"
 #
 # BONUS: Allow string codes to have escape codes such as the following:
-#      
+#
 #       \n    = newline (10)
 #       \\    = baskslash char (\)
 #       \"    = quote (")
@@ -190,9 +194,10 @@ def t_INTEGER(t):
 # CAUTION:  Implementing escape codes is a lot harder than it looks.
 # They are not critical for the rest of the project--only work on it
 # if you are bored and have extra time.
-    
+
+
 def t_STRING(t):
-    r'".*"'
+    r'\".*?\"'
     # Strip off the leading/trailing quotes
     t.value = t.value[1:-1]
 
@@ -204,11 +209,13 @@ def t_STRING(t):
 # ----------------------------------------------------------------------
 # *** YOU MUST COMPLETE : Write the regex and add keywords ***
 #
-# Identifiers and keywords. 
+# Identifiers and keywords.
 
 # Match a raw identifier.  Identifiers follow the same rules as Python.
 # That is, they start with a letter or underscore (_) and can contain
 # an arbitrary number of letters, digits, or underscores after that.
+
+
 def t_ID(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
 
@@ -231,20 +238,26 @@ def t_ID(t):
 # input file.  This includes comments and blank lines
 
 # One or more blank lines
+
+
 def t_newline(t):
-    r'\n'
+    r'\n+'
     t.lexer.lineno += len(t.value)
 
 # C-style comment (/* ... */)
+
+
 def t_COMMENT(t):
-    r'/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/'
+    r'/\*(.|\n)*?\*/'
 
     # Must count the number of newlines included to keep line count accurate
     t.lexer.lineno += t.value.count('\n')
-    
+
 # C++-style comment (//...)
+
+
 def t_CPPCOMMENT(t):
-    r'(//.*)'
+    r'(//.*\n)'
     t.lexer.lineno += 1
 
 # ----------------------------------------------------------------------
@@ -254,26 +267,33 @@ def t_CPPCOMMENT(t):
 # your lexer.
 
 # Illegal character (generic error handling)
+
+
 def t_error(t):
-    error(t.lexer.lineno,"Illegal character %r" % t.value[0])
+    error(t.lexer.lineno, "Illegal character %r" % t.value[0])
     t.lexer.skip(1)
 
 # Unterminated C-style comment
+
+
 def t_COMMENT_UNTERM(t):
-    r'/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*'
-    error(t.lexer.lineno,"Unterminated comment")
+    r'/\*([^*]|[\n]|(\*+([^*/]|[\n])))*'
+    error(t.lexer.lineno, "Unterminated comment")
 
 # Unterminated string literal
+
+
 def t_STRING_UNTERM(t):
     r'".+[^"](,|$| |\t)'
-    error(t.lexer.lineno,"Unterminated string literal")
+    error(t.lexer.lineno, "Unterminated string literal")
     t.lexer.lineno += 1
-    
+
 # ----------------------------------------------------------------------
 #                DO NOT CHANGE ANYTHING BELOW THIS PART
 # ----------------------------------------------------------------------
 
 _lexer = lex()
+
 
 def get_lexer():
     '''
@@ -282,19 +302,22 @@ def get_lexer():
     _lexer.lineno = 1
     return _lexer
 
+
 def tokenize(text):
     lexer = get_lexer()
     lexer.input(text)
     return list(iter(lexer.token, None))
 
+
 def reporter(text):
     print('%s' % text)
+
 
 def main(args):
     '''
     Main program. For testing purposes.
     '''
-    
+
     if len(args) != 2:
         sys.stderr.write("Usage: %s filename\n" % args[0])
         raise SystemExit(1)

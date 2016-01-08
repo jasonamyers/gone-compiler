@@ -22,6 +22,7 @@ from llvmlite.ir import (
     FunctionType
 )
 
+from .bblock import BlockVisitor
 # Declare the LLVM type objects that you want to use for the low-level
 # in our intermediate code.  Basically, you're going to need to
 # declare the integer, float, and string types here.  These correspond
@@ -93,7 +94,9 @@ class GenerateLLVM(object):
                                  name='main')
 
         self.block = self.function.append_basic_block('entry')
+        #self.block = None
         self.builder = IRBuilder(self.block)
+        #self.builder = None
 
         # Dictionary that holds all of the global variable/function declarations.
         # Any declaration in the Gone source code is going to get an entry here
@@ -122,8 +125,11 @@ class GenerateLLVM(object):
         # Initialize the runtime library functions (see below)
         self.declare_runtime_library()
 
-    def new_basic_block(name=''):
-        pass
+        self.last_branch = None
+
+    def new_basic_block(self, name=''):
+        self.builder = IRBuilder(self.block.instructions)
+        return self.function.append_basic_block(name)
 
     def declare_runtime_library(self):
         # Certain functions such as I/O and string handling are often easier
@@ -165,8 +171,24 @@ class GenerateLLVM(object):
         # Add a return statement.  Note, at this point, we don't really have
         # user-defined functions so this is a bit of hack--it may be removed
         # later.
-        self.builder.ret_void()
+        # self.builder.ret_void()
 
+    def add_block(self, name):
+        # Add a new block to the existing function
+        return self.function.append_basic_block(name)
+
+    def set_block(self, block):
+        # Sets the current block for adding more code
+        self.block = block
+        self.builder.position_at_end(block)
+
+    def cbranch(self, testvar, true_block, false_block):
+        self.builder.cbranch(self.temps[testvar], true_block, false_block)
+
+    def branch(self, next_block):
+        if self.last_branch != self.block:
+            self.builder.branch(next_block)
+        self.last_branch = self.block
     # ----------------------------------------------------------------------
     # Opcode implementation.   You must implement the opcodes.  A few
     # sample opcodes have been given to get you started.
@@ -393,45 +415,49 @@ class GenerateLLVM(object):
         self.temps[target] = self.builder.call(func, argvals)
 
 
-class EmitBlocks(BlockVisitor):
+class GenerateBlocksLLVM(BlockVisitor):
 
-    def __init__(self):
-        self.gen = GenerateLLVM()
+    def __init__(self, generator):
+        self.gen = generator
+        # self.visit(code.block)
+        #print('GenerateLLVM Keys %s' % self.gen.__dict__.keys())
+        #print('Block %s' % self.gen.block.__dict__)
 
     def visit_BasicBlock(self, block):
-        nextblock = self.gen.new_basic_block()
-        self.gen.builder.branch(nextblock)
-        self.gen.block = nextblock
+        print('BasicBlock %s' % block.__dict__)
+        # nextblock = self.gen.new_basic_block()
+        # print('Nextblock %s' % nextblock)
+        # self.gen.builder.branch(nextblock)
+        #print('Post Branch')
+        #self.gen.block = nextblock
         self.gen.generate_code(block.instructions)
 
     def visit_IfBlock(self, block):
-        ifblock = self.gen.new_basic_block()
-
-        tblock = self.gen.new_basic_block()
-        fblock = None
-        if block.fblock:
-            fblock = self.gen.new_basic_block()
-        endblock = self.gen.new_basic_block()
-
-        self.gen.builder.branch(ifblock)
-
-        self.gen.block = ifblock
+        print('IfBlock %s' % block.__dict__)
         self.gen.generate_code(block.instructions)
+        #ifblock = self.gen.new_basic_block()
+
+        tblock = self.gen.add_block("tblock")
+        fblock = self.gen.add_block("fblock")
+        endblock = self.gen.add_block("endblock")
+
+        # self.gen.builder.branch(ifblock)
+
         # Conditional branch
-        self.generator.cbranch(block.testvar, then_block, else_block)
+        self.gen.cbranch(block.testvar, tblock, fblock)
 
         # Visit the then-branch
-        self.generator.set_block(then_block)
+        self.gen.set_block(tblock)
         self.visit(block.if_branch)
-        self.generator.branch(merge_block)
+        self.gen.branch(endblock)
 
         # Visit the else-branch
-        self.generator.set_block(else_block)
+        self.gen.set_block(fblock)
         self.visit(block.else_branch)
-        self.generator.branch(merge_block)
+        self.gen.branch(endblock)
 
         # Continue with the merge block
-        self.generator.set_block(merge_block)
+        self.gen.set_block(endblock)
 
 
 #######################################################################
@@ -451,7 +477,10 @@ def compile_llvm(source):
 
     # Generate low-level code
     # !!! This needs to be changed in Project 7/8
-    generator.generate_code(code)
+    # generator.generate_code(code)
+    blockgen = GenerateBlocksLLVM(generator).visit(code.start_block)
+
+    generator.builder.ret_void()
 
     return str(generator.module)
 

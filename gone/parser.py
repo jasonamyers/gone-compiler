@@ -188,6 +188,7 @@ def p_statement(p):
               |  extern_declaration
               |  ifelse_statement
               |  if_statement
+              |  while_statement
     """
     p[0] = p[1]
 
@@ -211,6 +212,13 @@ def p_ifelse_statement(p):
     ifelse_statement : IF expression LBRACE basicblock RBRACE ELSE LBRACE basicblock RBRACE
     """
     p[0] = IfElseStatement(p[2], p[4], p[8], lineno=p.lineno(1))
+
+
+def p_while_statement(p):
+    """
+    while_statement : WHILE expression LBRACE basicblock RBRACE
+    """
+    p[0] = WhileStatement(p[2], p[4], lineno=p.lineno(1))
 
 
 def p_expression_unary(p):

@@ -159,9 +159,9 @@ class CheckProgramVisitor(NodeVisitor):
     def visit_IfStatement(self, node):
         # print('IfStatement: %r', node)
         self.visit(node.condition)
-        if self.condition.type != types.bool_type:
+        if getattr(node.condition, 'type') != types.bool_type:
             error(node.lineno, 'The IF condition must be a boolean')
-        self.visit(node.statements)
+        self.visit(node.block)
         node.type = node.condition.type
 
     def visit_IfElseStatement(self, node):
@@ -172,6 +172,14 @@ class CheckProgramVisitor(NodeVisitor):
         self.visit(node.tblock)
         self.visit(node.fblock)
         node.orelse = True
+        node.type = node.condition.type
+
+    def visit_WhileStatement(self, node):
+        # print('WhileStatement: %r', node.__dict__)
+        self.visit(node.condition)
+        if getattr(node.condition, 'type') != types.bool_type:
+            error(node.lineno, 'The IF condition must be a boolean')
+        self.visit(node.block)
         node.type = node.condition.type
 
     def visit_BinaryOperator(self, node):

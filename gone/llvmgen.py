@@ -94,9 +94,9 @@ class GenerateLLVM(object):
                                  name='main')
 
         self.block = self.function.append_basic_block('entry')
-        #self.block = None
+        # self.block = None
         self.builder = IRBuilder(self.block)
-        #self.builder = None
+        # self.builder = None
 
         # Dictionary that holds all of the global variable/function declarations.
         # Any declaration in the Gone source code is going to get an entry here
@@ -420,22 +420,22 @@ class GenerateBlocksLLVM(BlockVisitor):
     def __init__(self, generator):
         self.gen = generator
         # self.visit(code.block)
-        #print('GenerateLLVM Keys %s' % self.gen.__dict__.keys())
-        #print('Block %s' % self.gen.block.__dict__)
+        # print('GenerateLLVM Keys %s' % self.gen.__dict__.keys())
+        # print('Block %s' % self.gen.block.__dict__)
 
     def visit_BasicBlock(self, block):
         print('BasicBlock %s' % block.__dict__)
         # nextblock = self.gen.new_basic_block()
         # print('Nextblock %s' % nextblock)
         # self.gen.builder.branch(nextblock)
-        #print('Post Branch')
-        #self.gen.block = nextblock
+        # print('Post Branch')
+        # self.gen.block = nextblock
         self.gen.generate_code(block.instructions)
 
     def visit_IfBlock(self, block):
         print('IfBlock %s' % block.__dict__)
         self.gen.generate_code(block.instructions)
-        #ifblock = self.gen.new_basic_block()
+        # ifblock = self.gen.new_basic_block()
 
         tblock = self.gen.add_block("tblock")
         fblock = self.gen.add_block("fblock")
@@ -458,6 +458,29 @@ class GenerateBlocksLLVM(BlockVisitor):
 
         # Continue with the merge block
         self.gen.set_block(endblock)
+
+    def visit_WhileBlock(self, block):
+        test_block = self.gen.add_block("whiletest")
+        # Unconditionally branch to the new block
+        self.gen.branch(test_block)
+        self.gen.set_block(test_block)
+
+        # Generate the LLVM code for the test
+        self.gen.generate_code(block)
+
+        # Make a block for the body and loop termination
+        loop_block = self.gen.add_block("loop")
+        after_loop = self.gen.add_block("afterloop")
+
+        # Conditional branch
+        self.gen.cbranch(block.testvar, loop_block, after_loop)
+
+        # Emit the loop body
+        self.gen.set_block(loop_block)
+        self.visit(block.body)
+        self.gen.branch(test_block)
+
+        self.gen.set_block(after_loop)
 
 
 #######################################################################

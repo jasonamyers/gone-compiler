@@ -87,6 +87,13 @@ class IfElseStatement(AST):
                                                        self.tblock, self.fblock)
 
 
+class WhileStatement(AST):
+    _fields = ['condition', 'block']
+
+    def __repr__(self):
+        return 'WhileStatement %r {%r}' % (self.condition, self.block)
+
+
 class Literal(AST):
     '''
     A literal value such as 2, 2.5, or "two"

@@ -310,6 +310,25 @@ class GenerateCode(ast.NodeVisitor):
     def visit_IfElseStatement(self, node):
         self.visit_IfStatement(node)
 
+    def visit_WhileStatement(self, node):
+        whileblock = WhileBlock()
+        self.code.next_block = whileblock
+        self.code = whileblock
+        # Evaluate the condition
+        self.visit(node.condition)
+
+        # Save the variable where the test value is stored
+        whileblock.testvar = node.condition.gen_location
+
+        # Traverse the body
+        whileblock.body = BasicBlock()
+        self.code = whileblock.body
+        self.visit(node.block)
+
+        # Create the terminating block
+        self.code = BasicBlock()
+        whileblock.next_block = self.code
+
     def visit_BooleanOperator(self, node):
         self.visit_BinaryOperator(node)
 

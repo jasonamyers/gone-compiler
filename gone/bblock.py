@@ -41,6 +41,19 @@ class IfBlock(Block):
         self.else_branch = None
 
 
+class WhileBlock(Block):
+    '''
+    Class for representing a while-loop.  The instructions 
+    in the block evaluate the loop condition.  The
+    body link points to the blocks in the loop body.
+    '''
+
+    def __init__(self):
+        super(WhileBlock, self).__init__()
+        self.body = None
+        self.testvar = None
+
+
 class BlockVisitor(object):
     '''
     Class for visiting basic blocks.  Define a subclass and define
@@ -68,3 +81,7 @@ class PrintBlocks(BlockVisitor):
         self.visit_BasicBlock(block)
         self.visit(block.if_branch)
         self.visit(block.else_branch)
+
+    def visit_WhileBlock(self, block):
+        self.visit_BasicBlock(block)
+        self.visit(block.body)

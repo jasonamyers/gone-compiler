@@ -14,6 +14,7 @@ import llvmlite.binding as llvm
 
 _path = os.path.dirname(__file__)
 
+
 def run(llvm_ir):
     # Load the runtime
     ctypes._dlopen(os.path.join(_path, 'gonert.so'), ctypes.RTLD_GLOBAL)
@@ -33,13 +34,20 @@ def run(llvm_ir):
     # Execute the main() function
     #
     # !!! Note: Requires modification in Project 8 (see below)
-    main_ptr = engine.get_function_address('main')
+    #main_ptr = engine.get_function_address('main')
+    #main_func = ctypes.CFUNCTYPE(None)(main_ptr)
+    # main_func()
+    init_ptr = engine.get_function_address('__init')
+    init_func = ctypes.CFUNCTYPE(None)(init_ptr)
+    init_func()
+    main_ptr = engine.get_function_address('_gone_main')
     main_func = ctypes.CFUNCTYPE(None)(main_ptr)
     main_func()
 
     # Project 8:  Modify the above code to execute the Gone __init()
     # function that initializes global variables.  Then add code below
     # that executes the Gone main() function.
+
 
 def main():
     from .errors import errors_reported

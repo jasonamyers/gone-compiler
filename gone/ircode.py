@@ -181,6 +181,7 @@ it is assumed to be correct for the purposes of generated code.
 
 from . import ast
 from collections import defaultdict
+from .bblock import *
 
 # Map various operator symbol names such as +, -, *, /
 # to actual opcode names 'add','sub','mul','div' to be emitted in
@@ -191,11 +192,20 @@ binary_ops = {
     '-': 'sub',
     '*': 'mul',
     '/': 'div',
+    '<': 'lt',
+    '<=': 'le',
+    '>': 'gt',
+    '>=': 'ge',
+    '==': 'eq',
+    '!=': 'ne',
+    '&&': 'and',
+    '||': 'or'
 }
 
 unary_ops = {
     '+': 'uadd',
-    '-': 'usub'
+    '-': 'usub',
+    '!': 'not'
 }
 
 # Implement the following Node Visitor class so that it creates
@@ -215,7 +225,8 @@ class GenerateCode(ast.NodeVisitor):
         self.versions = defaultdict(int)
 
         # The generated code (list of tuples)
-        self.code = []
+        self.code = BasicBlock()
+        self.start_block = self.code
 
         # A list of external declarations (and types)
         self.externs = []
@@ -263,6 +274,44 @@ class GenerateCode(ast.NodeVisitor):
 
         # Store location of the result on the node
         node.gen_location = target
+
+    def visit_IfStatement(self, node):
+        # Step 1: Make a new BasicBlock for the conditional test
+        ifblock = IfBlock()
+        self.code.next_block = ifblock
+        self.code = ifblock
+
+        # Step 2:  Evaluate the test condition
+        self.visit(node.condition)
+        ifblock.testvar = node.condition.gen_location
+
+        # Step 3: Create a branch for the if-body
+        self.code = BasicBlock()
+        ifblock.if_branch = self.code
+
+        # Step 4: Traverse all of the statements in the if-biody
+        # print(node.tblock.__dict__)
+        for bnode in node.tblock.statements:
+            self.visit(bnode)
+
+        # Step 5: If there's an else-clause, create a new block and
+        if node.orelse:
+            self.code = BasicBlock()
+            ifblock.else_branch = self.code
+
+            # Visit the body of the else-clause
+            for bnode in node.fblock.statements:
+                self.visit(bnode)
+
+        # Step 6: Create a new basic block to start the next section
+        self.code = BasicBlock()
+        ifblock.next_block = self.code
+
+    def visit_IfElseStatement(self, node):
+        self.visit_IfStatement(node)
+
+    def visit_BooleanOperator(self, node):
+        self.visit_BinaryOperator(node)
 
     def visit_PrintStatement(self, node):
         # Visit the printed expression
@@ -398,7 +447,7 @@ def compile_ircode(source):
         gen.visit(ast)
 
         # !!!  This part will need to be changed slightly in Projects 7/8
-        return gen.code
+        return gen
     else:
         return []
 
@@ -414,8 +463,7 @@ def main():
     code = compile_ircode(source)
 
     # !!! This part will need to be changed slightly in Projects 7/8
-    for instr in code:
-        print(instr)
+    PrintBlocks().visit(code.start_block)
 
 if __name__ == '__main__':
     main()

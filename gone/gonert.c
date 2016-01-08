@@ -13,6 +13,13 @@ void _print_float(double x) {
   printf("%f\n", x);
 }
 
+void _print_bool(int x) {
+  if (x == 1) {
+    printf("true\n");
+  } else {
+    printf("false\n");
+  }
+}
 /* 
    Bootstrapping code for creating a stand-alone executable.
    This code will be needed once you move to Project 8.  

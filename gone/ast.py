@@ -45,6 +45,14 @@ class AST(object):
 # A few sample nodes
 
 
+class Program(AST):
+    '''
+    A node representing an entire program.  A program
+    consists of a series of statements.
+    '''
+    _fields = ['statements']
+
+
 class Statements(AST):
     ''' A sequence of statements (e.g. multiple print statements)
     '''
@@ -62,6 +70,21 @@ class PrintStatement(AST):
 
     def __repr__(self):
         return 'Print: %r' % self.expr
+
+
+class IfStatement(AST):
+    _fields = ['condition', 'block']
+
+    def __repr__(self):
+        return 'IfStatement: %r {%r}' % (self.condition, self.block)
+
+
+class IfElseStatement(AST):
+    _fields = ['condition', 'tblock', 'fblock']
+
+    def __repr__(self):
+        return 'IfElseStatement: %r {%r} ELSE {%r}' % (self.condition,
+                                                       self.tblock, self.fblock)
 
 
 class Literal(AST):
@@ -90,6 +113,15 @@ class UnaryOperator(AST):
 
     def __repr__(self):
         return 'UnaryOperator: %r' % self.op
+
+
+class BooleanOperator(AST):
+    """ < > <= >= != || && !
+    """
+    _fields = ['op', 'left', 'right']
+
+    def __repr__(self):
+        return 'BooleanOperator: %r' % self.op
 
 
 class ConstantDeclaration(AST):
@@ -173,7 +205,7 @@ class FunctionCall(AST):
 
 
 class ExprList(AST):
-    ''' 
+    '''
     A sequence of expressions
     '''
     _fields = ['expressions']

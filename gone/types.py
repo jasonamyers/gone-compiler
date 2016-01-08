@@ -75,11 +75,17 @@ int_type = GoneType(
         '+': 'int',
         '-': 'int',
         '*': 'int',
-        '/': 'int'
+        '/': 'int',
+        '<': 'bool',
+        '>': 'bool',
+        '<=': 'bool',
+        '>=': 'bool',
+        '==': 'bool',
+        '!=': 'bool',
     },
     unary_ops={
         '+': 'int',
-        '-': 'int'
+        '-': 'int',
     }
 )
 
@@ -90,11 +96,31 @@ float_type = GoneType(
         '+': 'float',
         '-': 'float',
         '*': 'float',
-        '/': 'float'
+        '/': 'float',
+        '<': 'bool',
+        '>': 'bool',
+        '<=': 'bool',
+        '>=': 'bool',
+        '==': 'bool',
+        '!=': 'bool',
     },
     unary_ops={
         '+': 'float',
         '-': 'float'
+    }
+)
+
+bool_type = GoneType(
+    'bool',
+    default_value=0,
+    binary_ops={
+        '==': 'bool',
+        '!=': 'bool',
+        '&&': 'bool',
+        '||': 'bool',
+    },
+    unary_ops={
+        '!': 'bool'
     }
 )
 
@@ -114,11 +140,20 @@ error_type = GoneType(
         '+': '<error>',
         '-': '<error>',
         '*': '<error>',
-        '/': '<error>'
+        '/': '<error>',
+        '<': 'bool',
+        '>': 'bool',
+        '<=': 'bool',
+        '>=': 'bool',
+        '==': 'bool',
+        '!=': 'bool',
+        '&&': 'bool',
+        '||': 'bool',
     },
     unary_ops={
         '+': '<error>',
-        '-': '<error>'
+        '-': '<error>',
+        '!': '<error>'
     }
 )
 

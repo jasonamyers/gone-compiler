@@ -31,6 +31,7 @@ from llvmlite.ir import (
 int_type = IntType(32)         # 32-bit integer
 float_type = DoubleType()        # 64-bit float
 string_type = None                # Up to you (leave until the end)
+bool_type = IntType(1)
 
 void_type = VoidType()          # Void type.  This is a special type
 # used for internal functions returning
@@ -43,6 +44,7 @@ typemap = {
     'int': int_type,
     'float': float_type,
     'string': string_type,
+    'bool': bool_type
 }
 
 # The following class is going to generate the LLVM instruction stream.
@@ -120,6 +122,9 @@ class GenerateLLVM(object):
         # Initialize the runtime library functions (see below)
         self.declare_runtime_library()
 
+    def new_basic_block(name=''):
+        pass
+
     def declare_runtime_library(self):
         # Certain functions such as I/O and string handling are often easier
         # to implement in an external C library.  This method should make
@@ -139,6 +144,11 @@ class GenerateLLVM(object):
                                                 FunctionType(
                                                     void_type, [float_type]),
                                                 name="_print_float")
+
+        self.runtime['_print_bool'] = Function(self.module,
+                                               FunctionType(
+                                                   void_type, [int_type]),
+                                               name="_print_bool")
 
     def generate_code(self, ircode):
         # Given a sequence of SSA intermediate code tuples, generate LLVM
@@ -169,6 +179,9 @@ class GenerateLLVM(object):
     def emit_literal_float(self, value, target):
         self.temps[target] = Constant(float_type, value)
 
+    def emit_literal_bool(self, value, target):
+        self.temps[target] = Constant(bool_type, value)
+
     # def emit_literal_string(self, value, target):
     #     self.temps[target] = Constant(string_type, value)
 
@@ -182,6 +195,11 @@ class GenerateLLVM(object):
     def emit_alloc_float(self, name):
         var = GlobalVariable(self.module, float_type, name=name)
         var.initializer = Constant(float_type, 0)
+        self.vars[name] = var
+
+    def emit_alloc_bool(self, name):
+        var = GlobalVariable(self.module, bool_type, name=name)
+        var.initializer = Constant(bool_type, 0)
         self.vars[name] = var
 
     # def emit_alloc_string(self, name):
@@ -198,10 +216,16 @@ class GenerateLLVM(object):
     def emit_load_float(self, name, target):
         self.temps[target] = self.builder.load(self.vars[name], target)
 
+    def emit_load_bool(self, name, target):
+        self.temps[target] = self.builder.load(self.vars[name], target)
+
     def emit_store_int(self, source, target):
         self.builder.store(self.temps[source], self.vars[target])
 
     def emit_store_float(self, source, target):
+        self.builder.store(self.temps[source], self.vars[target])
+
+    def emit_store_bool(self, source, target):
         self.builder.store(self.temps[source], self.vars[target])
 
     # Binary + operator
@@ -265,13 +289,94 @@ class GenerateLLVM(object):
             Constant(float_type, 0.0),
             self.temps[source],
             target)
+ # Binary < operator
 
+    def emit_lt_int(self, left, right, target):
+        self.temps[target] = self.builder.icmp_signed(
+            '<', self.temps[left], self.temps[right], target)
+
+    def emit_lt_float(self, left, right, target):
+        self.temps[target] = self.builder.fcmp_ordered(
+            '<', self.temps[left], self.temps[right], target)
+
+    # Binary <= operator
+    def emit_le_int(self, left, right, target):
+        self.temps[target] = self.builder.icmp_signed(
+            '<=', self.temps[left], self.temps[right], target)
+
+    def emit_le_float(self, left, right, target):
+        self.temps[target] = self.builder.fcmp_ordered(
+            '<=', self.temps[left], self.temps[right], target)
+
+    # Binary > operator
+    def emit_gt_int(self, left, right, target):
+        self.temps[target] = self.builder.icmp_signed(
+            '>', self.temps[left], self.temps[right], target)
+
+    def emit_gt_float(self, left, right, target):
+        self.temps[target] = self.builder.fcmp_ordered(
+            '>', self.temps[left], self.temps[right], target)
+
+    # Binary >= operator
+    def emit_ge_int(self, left, right, target):
+        self.temps[target] = self.builder.icmp_signed(
+            '>=', self.temps[left], self.temps[right], target)
+
+    def emit_ge_float(self, left, right, target):
+        self.temps[target] = self.builder.fcmp_ordered(
+            '>=', self.temps[left], self.temps[right], target)
+
+    # Binary == operator
+    def emit_eq_int(self, left, right, target):
+        self.temps[target] = self.builder.icmp_signed(
+            '==', self.temps[left], self.temps[right], target)
+
+    def emit_eq_bool(self, left, right, target):
+        self.temps[target] = self.builder.icmp_signed(
+            '==', self.temps[left], self.temps[right], target)
+
+    def emit_eq_float(self, left, right, target):
+        self.temps[target] = self.builder.fcmp_ordered(
+            '==', self.temps[left], self.temps[right], target)
+
+    # Binary != operator
+    def emit_ne_int(self, left, right, target):
+        self.temps[target] = self.builder.icmp_signed(
+            '!=', self.temps[left], self.temps[right], target)
+
+    def emit_ne_bool(self, left, right, target):
+        self.temps[target] = self.builder.icmp_signed(
+            '!=', self.temps[left], self.temps[right], target)
+
+    def emit_ne_float(self, left, right, target):
+        self.temps[target] = self.builder.fcmp_ordered(
+            '!=', self.temps[left], self.temps[right], target)
+
+    # Binary && operator
+    def emit_and_bool(self, left, right, target):
+        self.temps[target] = self.builder.and_(
+            self.temps[left], self.temps[right], target)
+
+    # Binary || operator
+    def emit_or_bool(self, left, right, target):
+        self.temps[target] = self.builder.or_(
+            self.temps[left], self.temps[right], target)
+
+    # Unary ! operator
+    def emit_not_bool(self, source, target):
+        self.temps[target] = self.builder.icmp_signed(
+            '==', self.temps[source], Constant(bool_type, 0), target)
     # Print statements
+
     def emit_print_int(self, source):
         self.builder.call(self.runtime['_print_int'], [self.temps[source]])
 
     def emit_print_float(self, source):
         self.builder.call(self.runtime['_print_float'], [self.temps[source]])
+
+    def emit_print_bool(self, source):
+        self.builder.call(self.runtime['_print_bool'], [
+                          self.builder.zext(self.temps[source], int_type)])
 
     # Extern function declaration.
     def emit_extern_func(self, name, rettypename, *parmtypenames):
@@ -286,6 +391,47 @@ class GenerateLLVM(object):
         func = self.vars[funcname]
         argvals = [self.temps[name] for name in args[:-1]]
         self.temps[target] = self.builder.call(func, argvals)
+
+
+class EmitBlocks(BlockVisitor):
+
+    def __init__(self):
+        self.gen = GenerateLLVM()
+
+    def visit_BasicBlock(self, block):
+        nextblock = self.gen.new_basic_block()
+        self.gen.builder.branch(nextblock)
+        self.gen.block = nextblock
+        self.gen.generate_code(block.instructions)
+
+    def visit_IfBlock(self, block):
+        ifblock = self.gen.new_basic_block()
+
+        tblock = self.gen.new_basic_block()
+        fblock = None
+        if block.fblock:
+            fblock = self.gen.new_basic_block()
+        endblock = self.gen.new_basic_block()
+
+        self.gen.builder.branch(ifblock)
+
+        self.gen.block = ifblock
+        self.gen.generate_code(block.instructions)
+        # Conditional branch
+        self.generator.cbranch(block.testvar, then_block, else_block)
+
+        # Visit the then-branch
+        self.generator.set_block(then_block)
+        self.visit(block.if_branch)
+        self.generator.branch(merge_block)
+
+        # Visit the else-branch
+        self.generator.set_block(else_block)
+        self.visit(block.else_branch)
+        self.generator.branch(merge_block)
+
+        # Continue with the merge block
+        self.generator.set_block(merge_block)
 
 
 #######################################################################

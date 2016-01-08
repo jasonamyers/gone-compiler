@@ -140,10 +140,11 @@ class CheckProgramVisitor(NodeVisitor):
         self.symbols.add('int', types.int_type)
         self.symbols.add('float', types.float_type)
         self.symbols.add('string', types.string_type)
+        self.symbols.add('bool', types.bool_type)
 
     def visit_Program(self, node):
         # 1. Visit all of the statements
-        pass
+        self.visit(node.statements)
 
     def visit_UnaryOperator(self, node):
         self.visit(node.expr)
@@ -154,6 +155,24 @@ class CheckProgramVisitor(NodeVisitor):
                   (node.op, node.expr.type))
         # 2. Set the result type to the same as the operand
         node.type = node.expr.type
+
+    def visit_IfStatement(self, node):
+        # print('IfStatement: %r', node)
+        self.visit(node.condition)
+        if self.condition.type != types.bool_type:
+            error(node.lineno, 'The IF condition must be a boolean')
+        self.visit(node.statements)
+        node.type = node.condition.type
+
+    def visit_IfElseStatement(self, node):
+        # print('IfElseStatement: %r', node)
+        self.visit(node.condition)
+        if getattr(node.condition, 'type') != types.bool_type:
+            error(node.lineno, 'The IF condition must be a boolean')
+        self.visit(node.tblock)
+        self.visit(node.fblock)
+        node.orelse = True
+        node.type = node.condition.type
 
     def visit_BinaryOperator(self, node):
         # print('BinaryOperator %r' % node)
@@ -174,6 +193,10 @@ class CheckProgramVisitor(NodeVisitor):
                                                node.right.type))
         # 3. Assign the result type to the result
         node.type = node.left.type
+
+    def visit_BooleanOperator(self, node):
+        self.visit_BinaryOperator(node)
+        node.type = types.bool_type
 
     def visit_AssignmentStatement(self, node):
         # print('%s: AssignmentStatement: %s' % (node.lineno, node.__dict__))
@@ -279,7 +302,9 @@ class CheckProgramVisitor(NodeVisitor):
 
     def visit_Literal(self, node):
         # Attach an appropriate type to the literal
-        if isinstance(node.value, int):
+        if isinstance(node.value, bool):
+            node.type = types.bool_type
+        elif isinstance(node.value, int):
             node.type = types.int_type
         elif isinstance(node.value, float):
             node.type = types.float_type

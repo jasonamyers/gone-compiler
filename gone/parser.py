@@ -95,8 +95,12 @@ from .ast import *
 # See http://www.dabeaz.com/ply/ply.html#ply_nn27
 
 precedence = (
+    ('left', 'LOR'),
+    ('left', 'LAND'),
+    ('nonassoc', 'LT', 'LE', 'GT', 'GE', 'EQ', 'NE'),
     ('left', 'PLUS', 'MINUS'),
     ('left', 'TIMES', 'DIVIDE'),
+    ('right', 'UNARY'),  # Dave Trolly Hack
 )
 
 # ----------------------------------------------------------------------
@@ -141,9 +145,23 @@ precedence = (
 
 def p_program(p):
     """
-    program : statements
+    program : basicblock
+    """
+    p[0] = Program(p[1])
+
+
+def p_basicblock(p):
+    """
+    basicblock : statements
     """
     p[0] = p[1]
+
+
+def p_basicblock_empty(p):
+    """
+    basicblock : empty
+    """
+    p[0] = []
 
 
 def p_statements(p):
@@ -168,6 +186,8 @@ def p_statement(p):
               |  var_declaration
               |  assign_statement
               |  extern_declaration
+              |  ifelse_statement
+              |  if_statement
     """
     p[0] = p[1]
 
@@ -179,10 +199,25 @@ def p_print_statemnt(p):
     p[0] = PrintStatement(p[2], lineno=p.lineno(1))
 
 
+def p_if_statement(p):
+    """
+    if_statement : IF expression LBRACE basicblock RBRACE
+    """
+    p[0] = IfStatement(p[2], p[4], lineno=p.lineno(1))
+
+
+def p_ifelse_statement(p):
+    """
+    ifelse_statement : IF expression LBRACE basicblock RBRACE ELSE LBRACE basicblock RBRACE
+    """
+    p[0] = IfElseStatement(p[2], p[4], p[8], lineno=p.lineno(1))
+
+
 def p_expression_unary(p):
     """
-    expression :  PLUS expression
-               |  MINUS expression
+    expression :  PLUS expression %prec UNARY
+               |  MINUS expression %prec UNARY
+               |  LNOT expression %prec UNARY
     """
     p[0] = UnaryOperator(p[1], p[2], lineno=p.lineno(1))
 
@@ -195,6 +230,20 @@ def p_expression_binary(p):
                | expression DIVIDE expression
     """
     p[0] = BinaryOperator(p[2], p[1], p[3], lineno=p.lineno(1))
+
+
+def p_expression_boolean(p):
+    """
+    expression : expression LT expression
+               | expression GT expression
+               | expression LE expression
+               | expression GE expression
+               | expression EQ expression
+               | expression NE expression
+               | expression LAND expression
+               | expression LOR expression
+    """
+    p[0] = BooleanOperator(p[2], p[1], p[3], lineno=p.lineno(1))
 
 
 def p_expression(p):
@@ -267,13 +316,6 @@ def p_store_location(p):
     p[0] = StoreVariable(p[1], lineno=p.lineno(1))
 
 
-def p_location(p):
-    """
-    location : ID
-    """
-    p[0] = StoreVariable(p[1])
-
-
 def p_expression_group(p):
     """
     expression : LPAREN expression RPAREN
@@ -316,6 +358,14 @@ def p_literal(p):
             | STRING
     """
     p[0] = Literal(p[1], lineno=p.lineno(1))
+
+
+def p_literal_bool(p):
+    """
+    literal : TRUE
+            | FALSE
+    """
+    p[0] = Literal(p[1] == 'true', lineno=p.lineno(1))
 
 
 def p_extern_declaration(p):

@@ -111,14 +111,20 @@ from ply.lex import lex
 tokens = [
     # keywords
     'ID', 'CONST', 'VAR', 'LEN', 'PRINT', 'FUNC', 'EXTERN',
+    'TRUE', 'FALSE',
 
     # Operators and delimiters
     'PLUS', 'MINUS', 'TIMES', 'DIVIDE',
     'ASSIGN', 'SEMI', 'LPAREN', 'RPAREN',
     'COMMA', 'LBRACE', 'RBRACE',
 
+    # Boolean
+    'LT', 'GT', 'LE', 'GE', 'EQ', 'NE', 'LAND', 'LOR', 'LNOT',
+
     # Literals
     'INTEGER', 'FLOAT', 'STRING',
+
+    'IF', 'ELSE', 'WHILE'
 ]
 
 # ----------------------------------------------------------------------
@@ -145,6 +151,16 @@ t_RPAREN = r'\)'
 t_COMMA = r','
 t_LBRACE = r'{'
 t_RBRACE = r'}'
+
+t_LT = r'<'
+t_GT = r'>'
+t_LE = r'<='
+t_GE = r'>='
+t_EQ = r'=='
+t_NE = r'!='
+t_LAND = r'&&'
+t_LOR = r'\|\|'
+t_LNOT = r'!'
 
 # ----------------------------------------------------------------------
 # *** YOU MUST COMPLETE : write the regexs and additional code below ***
@@ -226,7 +242,8 @@ def t_ID(t):
     # if t.value =='var':
     #      t.type = 'VAR'
     #
-    if t.value in ['var', 'const', 'print', 'func', 'extern']:
+    if t.value in ['var', 'const', 'print', 'func', 'extern', 'true', 'false',
+                   'if', 'else', 'while']:
         t.type = t.value.upper()
 
     return t

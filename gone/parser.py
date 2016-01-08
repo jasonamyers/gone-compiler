@@ -189,6 +189,8 @@ def p_statement(p):
               |  ifelse_statement
               |  if_statement
               |  while_statement
+              |  func_declaration
+              |  return_statement
     """
     p[0] = p[1]
 
@@ -219,6 +221,20 @@ def p_while_statement(p):
     while_statement : WHILE expression LBRACE basicblock RBRACE
     """
     p[0] = WhileStatement(p[2], p[4], lineno=p.lineno(1))
+
+
+def p_return_statement(p):
+    """
+    return_statement : RETURN expression SEMI
+    """
+    p[0] = ReturnStatement(p[2], lineno=p.lineno(1))
+
+
+def p_func_declaration(p):
+    """
+    func_declaration : func_prototype LBRACE basicblock RBRACE
+    """
+    p[0] = FunctionDeclaration(p[1], p[3], lineno=p.lineno(2))
 
 
 def p_expression_unary(p):
@@ -265,14 +281,14 @@ def p_function_call(p):
     """
     expression : ID LPAREN  exprlist RPAREN
     """
-    p[0] = FunctionCall(p[1], p[3])
+    p[0] = FunctionCall(p[1], p[3], lineno=p.lineno(1))
 
 
 def p_function_call_no_args(p):
     """
     expression : ID LPAREN RPAREN
     """
-    p[0] = FunctionCall(p[1], [])
+    p[0] = FunctionCall(p[1], [], lineno=p.lineno(1))
 
 
 def p_exprlist(p):

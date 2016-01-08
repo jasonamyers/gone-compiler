@@ -73,10 +73,10 @@ class PrintStatement(AST):
 
 
 class IfStatement(AST):
-    _fields = ['condition', 'block']
+    _fields = ['condition', 'tblock']
 
     def __repr__(self):
-        return 'IfStatement: %r {%r}' % (self.condition, self.block)
+        return 'IfStatement: %r {%r}' % (self.condition, self.tblock)
 
 
 class IfElseStatement(AST):
@@ -84,7 +84,22 @@ class IfElseStatement(AST):
 
     def __repr__(self):
         return 'IfElseStatement: %r {%r} ELSE {%r}' % (self.condition,
-                                                       self.tblock, self.fblock)
+                                                       self.tblock,
+                                                       self.fblock)
+
+
+class ReturnStatement(AST):
+    '''
+    Return statement
+    '''
+    _fields = ['expr']
+
+
+class FunctionDeclaration(AST):
+    '''
+    A definition of a function
+    '''
+    _fields = ['prototype', 'statements']
 
 
 class WhileStatement(AST):

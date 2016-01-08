@@ -124,7 +124,9 @@ tokens = [
     # Literals
     'INTEGER', 'FLOAT', 'STRING',
 
-    'IF', 'ELSE', 'WHILE'
+    'IF', 'ELSE', 'WHILE',
+
+    'RETURN'
 ]
 
 # ----------------------------------------------------------------------
@@ -243,7 +245,7 @@ def t_ID(t):
     #      t.type = 'VAR'
     #
     if t.value in ['var', 'const', 'print', 'func', 'extern', 'true', 'false',
-                   'if', 'else', 'while']:
+                   'if', 'else', 'while', 'return']:
         t.type = t.value.upper()
 
     return t

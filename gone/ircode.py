@@ -183,6 +183,19 @@ from . import ast
 from collections import defaultdict
 from .bblock import *
 
+
+class Function(object):
+    '''
+    Class to represent function objects.
+    '''
+
+    def __init__(self, name, return_type, parameters, start_block):
+        self.name = name
+        self.return_type = return_type
+        self.parameters = parameters
+        self.start_block = start_block
+
+
 # Map various operator symbol names such as +, -, *, /
 # to actual opcode names 'add','sub','mul','div' to be emitted in
 # the SSA code.   This is easy to do using dictionaries:
@@ -230,6 +243,8 @@ class GenerateCode(ast.NodeVisitor):
 
         # A list of external declarations (and types)
         self.externs = []
+        self.functions = []
+        self.functions.append(Function('__init', 'void', [], self.start_block))
 
     def new_temp(self, typeobj):
         '''
@@ -290,12 +305,12 @@ class GenerateCode(ast.NodeVisitor):
         ifblock.if_branch = self.code
 
         # Step 4: Traverse all of the statements in the if-biody
-        # print(node.tblock.__dict__)
+        print(node.__dict__)
         for bnode in node.tblock.statements:
             self.visit(bnode)
 
         # Step 5: If there's an else-clause, create a new block and
-        if node.orelse:
+        if getattr(node, 'orelse', None):
             self.code = BasicBlock()
             ifblock.else_branch = self.code
 
@@ -368,7 +383,7 @@ class GenerateCode(ast.NodeVisitor):
         ('store_type',source, varname)
         """
         # print('visit_ConstantDeclaration')
-        opcode = 'alloc_' + node.type.name
+        opcode = 'global_' + node.type.name
         inst = (opcode, node.name)
         self.code.append(inst)
         self.visit(node.expr)
@@ -382,7 +397,10 @@ class GenerateCode(ast.NodeVisitor):
         ('store_type',source, varname)
         """
         # print('visit_VariableDeclaration')
-        opcode = 'alloc_' + node.type.name
+        if not node.is_global:
+            opcode = 'alloc_' + node.type.name
+        else:
+            opcode = 'global_' + node.type.name
         inst = (opcode, node.name)
         self.code.append(inst)
         if node.expr:
@@ -414,6 +432,30 @@ class GenerateCode(ast.NodeVisitor):
         inst = ('extern_func', node.prototype.name,
                 *paramtypes, node.type.name)
         self.code.append(inst)
+
+    def visit_FunctionDeclaration(self, node):
+        saved_block = self.code
+        self.code = BasicBlock()
+        paramtypes = [p.type.name for p in node.prototype.parameters]
+        func = Function(node.prototype.name, node.type.name,
+                        paramtypes, self.code)
+        # print(func.name)
+        self.functions.append(func)
+        # Emit the function parameters
+        for n, parm in enumerate(node.prototype.parameters):
+            inst = ('parm_' + parm.type.name, parm.name, n)
+            self.code.append(inst)
+
+        # Visit the function body
+        self.visit(node.statements)
+
+        # Restore the last saved block
+        self.code = saved_block
+
+    def visit_ReturnStatement(self, node):
+        self.visit(node.expr)
+        self.code.append(
+            ('return_' + node.expr.type.name, node.expr.gen_location))
 
     def visit_FunctionCall(self, node):
         # print('visit_FunctionCall')
@@ -466,7 +508,9 @@ def compile_ircode(source):
         gen.visit(ast)
 
         # !!!  This part will need to be changed slightly in Projects 7/8
-        return gen
+        # return gen
+        gen.code.append(('return_void',))
+        return gen.functions
     else:
         return []
 
@@ -479,10 +523,15 @@ def main():
         raise SystemExit(1)
 
     source = open(sys.argv[1]).read()
-    code = compile_ircode(source)
+    functions = compile_ircode(source)
 
     # !!! This part will need to be changed slightly in Projects 7/8
-    PrintBlocks().visit(code.start_block)
+    for func in functions:
+        print(":::::::::::::::: FUNCTION: %s %s %s" % (func.name,
+                                                       func.return_type,
+                                                       func.parameters))
+        PrintBlocks().visit(func.start_block)
+        print()
 
 if __name__ == '__main__':
     main()

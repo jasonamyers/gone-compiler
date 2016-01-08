@@ -45,7 +45,8 @@ typemap = {
     'int': int_type,
     'float': float_type,
     'string': string_type,
-    'bool': bool_type
+    'bool': bool_type,
+    'void': void_type
 }
 
 # The following class is going to generate the LLVM instruction stream.
@@ -89,18 +90,20 @@ class GenerateLLVM(object):
         # level function void main() { ... }.   This will get changed later.
 
         self.module = Module(name)
-        self.function = Function(self.module,
-                                 FunctionType(void_type, []),
-                                 name='main')
+        # self.function = Function(self.module,
+        #                         FunctionType(void_type, []),
+        #                         name='main')
 
-        self.block = self.function.append_basic_block('entry')
-        # self.block = None
-        self.builder = IRBuilder(self.block)
-        # self.builder = None
+        #self.block = self.function.append_basic_block('entry')
+        self.block = None
+        #self.builder = IRBuilder(self.block)
+        self.builder = None
 
         # Dictionary that holds all of the global variable/function declarations.
         # Any declaration in the Gone source code is going to get an entry here
-        self.vars = {}
+        # self.vars = {}
+        self.globals = {}
+        self.locals = {}
 
         # Dictionary that holds all of the temporary variables created in
         # the intermediate code.   For example, if you had an expression
@@ -126,6 +129,34 @@ class GenerateLLVM(object):
         self.declare_runtime_library()
 
         self.last_branch = None
+
+    def start_function(self, name, rettypename, parmtypenames):
+        rettype = typemap[rettypename]
+        parmtypes = [typemap[pname] for pname in parmtypenames]
+        # Type.function(rettype, parmtypes, False)
+        func_type = FunctionType(rettype, parmtypes)
+
+        # Create the function for which we're generating code
+        # Function.new(self.module, func_type, name)
+        self.function = Function(self.module, func_type, name=name)
+
+        # Make the builder and entry block
+        self.block = self.function.append_basic_block("entry")
+        self.builder = IRBuilder(self.block)
+
+        # Make the exit block
+        self.exit_block = self.function.append_basic_block("exit")
+
+        # Clear the local vars and temps
+        self.locals = {}
+        self.temps = {}
+
+        # Make the return variable
+        if rettype is not void_type:
+            self.locals['return'] = self.builder.alloca(rettype, name="return")
+
+        # Put an entry in the globals
+        self.globals[name] = self.function
 
     def new_basic_block(self, name=''):
         self.builder = IRBuilder(self.block.instructions)
@@ -173,6 +204,18 @@ class GenerateLLVM(object):
         # later.
         # self.builder.ret_void()
 
+    def terminate(self):
+        # Add a return statement. This connects the last block to the exit block.
+        # The return statement is then emitted
+        if self.last_branch != self.block:
+            self.builder.branch(self.exit_block)
+        self.builder.position_at_end(self.exit_block)
+
+        if 'return' in self.locals:
+            self.builder.ret(self.builder.load(self.locals['return']))
+        else:
+            self.builder.ret_void()
+
     def add_block(self, name):
         # Add a new block to the existing function
         return self.function.append_basic_block(name)
@@ -210,19 +253,34 @@ class GenerateLLVM(object):
     # Allocation of variables.  Declare as global variables and set to
     # a sensible initial value.
     def emit_alloc_int(self, name):
-        var = GlobalVariable(self.module, int_type, name=name)
+        var = self.builder.alloca(int_type, name=name)
         var.initializer = Constant(int_type, 0)
-        self.vars[name] = var
+        self.locals[name] = var
 
     def emit_alloc_float(self, name):
-        var = GlobalVariable(self.module, float_type, name=name)
+        var = self.builder.alloca(float_type, name=name)
         var.initializer = Constant(float_type, 0)
-        self.vars[name] = var
+        self.locals[name] = var
 
     def emit_alloc_bool(self, name):
+        var = self.builder.alloca(bool_type, name=name)
+        var.initializer = Constant(bool_type, 0)
+        self.locals[name] = var
+
+    def emit_global_int(self, name):
+        var = GlobalVariable(self.module, int_type, name=name)
+        var.initializer = Constant(int_type, 0)
+        self.globals[name] = var
+
+    def emit_global_float(self, name):
+        var = GlobalVariable(self.module, float_type, name=name)
+        var.initializer = Constant(float_type, 0)
+        self.globals[name] = var
+
+    def emit_global_bool(self, name):
         var = GlobalVariable(self.module, bool_type, name=name)
         var.initializer = Constant(bool_type, 0)
-        self.vars[name] = var
+        self.globals[name] = var
 
     # def emit_alloc_string(self, name):
     #     var = GlobalVariable(self.module, string_type, name=name)
@@ -232,23 +290,32 @@ class GenerateLLVM(object):
     # Load/store instructions for variables.  Load needs to pull a
     # value from a global variable and store in a temporary. Store
     # goes in the opposite direction.
+    def lookup_var(self, name):
+        if name in self.locals:
+            return self.locals[name]
+        else:
+            return self.globals[name]
+
     def emit_load_int(self, name, target):
-        self.temps[target] = self.builder.load(self.vars[name], target)
+        #print('LOADINT %s, %s' % (name, target))
+        #print('GLOBALS %s' % self.globals)
+        #print('LOCALS %s' % self.locals)
+        self.temps[target] = self.builder.load(self.lookup_var(name), target)
 
     def emit_load_float(self, name, target):
-        self.temps[target] = self.builder.load(self.vars[name], target)
+        self.temps[target] = self.builder.load(self.lookup_var(name), target)
 
     def emit_load_bool(self, name, target):
-        self.temps[target] = self.builder.load(self.vars[name], target)
+        self.temps[target] = self.builder.load(self.lookup_var(name), target)
 
     def emit_store_int(self, source, target):
-        self.builder.store(self.temps[source], self.vars[target])
+        self.builder.store(self.temps[source], self.lookup_var(target))
 
     def emit_store_float(self, source, target):
-        self.builder.store(self.temps[source], self.vars[target])
+        self.builder.store(self.temps[source], self.lookup_var(target))
 
     def emit_store_bool(self, source, target):
-        self.builder.store(self.temps[source], self.vars[target])
+        self.builder.store(self.temps[source], self.lookup_var(target))
 
     # Binary + operator
     def emit_add_int(self, left, right, target):
@@ -405,14 +472,46 @@ class GenerateLLVM(object):
         rettype = typemap[rettypename]
         parmtypes = [typemap[pname] for pname in parmtypenames]
         func_type = FunctionType(rettype, parmtypes)
-        self.vars[name] = Function(self.module, func_type, name=name)
+        self.globals[name] = Function(self.module, func_type, name=name)
 
     # Call an external function.
     def emit_call_func(self, funcname, *args):
         target = args[-1]
-        func = self.vars[funcname]
+        func = self.globals[funcname]
         argvals = [self.temps[name] for name in args[:-1]]
         self.temps[target] = self.builder.call(func, argvals)
+
+    # Function parameter declarations.  Must create as local variables
+    def emit_parm_int(self, name, num):
+        var = self.builder.alloca(int_type, name=name)
+        self.builder.store(self.function.args[num], var)
+        self.locals[name] = var
+
+    def emit_parm_float(self, name, num):
+        var = self.builder.alloca(float_type, name=name)
+        self.builder.store(self.function.args[num], var)
+        self.locals[name] = var
+
+    def emit_parm_bool(self, name, num):
+        var = self.builder.alloca(bool_type, name=name)
+        self.builder.store(self.function.args[num], var)
+        self.locals[name] = var
+
+    # Return statements
+    def emit_return_int(self, source):
+        self.builder.store(self.temps[source], self.locals['return'])
+        self.branch(self.exit_block)
+
+    def emit_return_float(self, source):
+        self.builder.store(self.temps[source], self.locals['return'])
+        self.branch(self.exit_block)
+
+    def emit_return_bool(self, source):
+        self.builder.store(self.temps[source], self.locals['return'])
+        self.branch(self.exit_block)
+
+    def emit_return_void(self):
+        self.branch(self.exit_block)
 
 
 class GenerateBlocksLLVM(BlockVisitor):
@@ -423,8 +522,19 @@ class GenerateBlocksLLVM(BlockVisitor):
         # print('GenerateLLVM Keys %s' % self.gen.__dict__.keys())
         # print('Block %s' % self.gen.block.__dict__)
 
+    def generate_function(self, func):
+        if func.name == 'main':
+            name = '_gone_main'
+        else:
+            name = func.name
+
+        self.gen.start_function(name, func.return_type, func.parameters)
+        self.visit(func.start_block)
+        self.gen.terminate()
+        # return self.generator.function
+
     def visit_BasicBlock(self, block):
-        print('BasicBlock %s' % block.__dict__)
+        # print('BasicBlock %s' % block.__dict__)
         # nextblock = self.gen.new_basic_block()
         # print('Nextblock %s' % nextblock)
         # self.gen.builder.branch(nextblock)
@@ -433,7 +543,7 @@ class GenerateBlocksLLVM(BlockVisitor):
         self.gen.generate_code(block.instructions)
 
     def visit_IfBlock(self, block):
-        print('IfBlock %s' % block.__dict__)
+        # print('IfBlock %s' % block.__dict__)
         self.gen.generate_code(block.instructions)
         # ifblock = self.gen.new_basic_block()
 
@@ -493,7 +603,7 @@ def compile_llvm(source):
 
     # Compile intermediate code
     # !!! This needs to be changed in Project 7/8
-    code = compile_ircode(source)
+    functions = compile_ircode(source)
 
     # Make the low-level code generator
     generator = GenerateLLVM()
@@ -501,9 +611,13 @@ def compile_llvm(source):
     # Generate low-level code
     # !!! This needs to be changed in Project 7/8
     # generator.generate_code(code)
-    blockgen = GenerateBlocksLLVM(generator).visit(code.start_block)
+    #blockgen = GenerateBlocksLLVM(generator).visit(code.start_block)
+    blockgen = GenerateBlocksLLVM(generator)
+    for func in functions:
+        # print('FUNC %s' % func.name)
+        blockgen.generate_function(func)
 
-    generator.builder.ret_void()
+    #  generator.builder.ret_void()
 
     return str(generator.module)
 

@@ -134,13 +134,34 @@ class CheckProgramVisitor(NodeVisitor):
 
     def __init__(self):
         # Initialize the symbol table
-        self.symbols = SymbolTable()
+        self.global_symtab = SymbolTable()
+        self.local_symtab = None
+        self.current_function = None
+        self.has_return = False
 
         # Add built-in type names (int, float, string) to the symbol table
-        self.symbols.add('int', types.int_type)
-        self.symbols.add('float', types.float_type)
-        self.symbols.add('string', types.string_type)
-        self.symbols.add('bool', types.bool_type)
+        self.symtab_add('int', types.int_type)
+        self.symtab_add('float', types.float_type)
+        self.symtab_add('string', types.string_type)
+        self.symtab_add('bool', types.bool_type)
+
+    # Method for adding a symbol to the appropriate symbol table
+    def symtab_add(self, name, node):
+        if self.local_symtab:
+            self.local_symtab.add(name, node)
+            node.is_global = False
+        else:
+            self.global_symtab.add(name, node)
+            node.is_global = True
+
+    # Method for looking up a symbol (checks both symbol tables)
+    def symtab_lookup(self, name):
+        result = None
+        if self.local_symtab:
+            result = self.local_symtab.get(name)
+        if result is None:
+            result = self.global_symtab.get(name)
+        return result
 
     def visit_Program(self, node):
         # 1. Visit all of the statements
@@ -161,7 +182,7 @@ class CheckProgramVisitor(NodeVisitor):
         self.visit(node.condition)
         if getattr(node.condition, 'type') != types.bool_type:
             error(node.lineno, 'The IF condition must be a boolean')
-        self.visit(node.block)
+        self.visit(node.tblock)
         node.type = node.condition.type
 
     def visit_IfElseStatement(self, node):
@@ -170,7 +191,11 @@ class CheckProgramVisitor(NodeVisitor):
         if getattr(node.condition, 'type') != types.bool_type:
             error(node.lineno, 'The IF condition must be a boolean')
         self.visit(node.tblock)
+        if_has_return = self.has_return
+        self.has_return = False
         self.visit(node.fblock)
+        else_has_return = self.has_return
+        self.has_return = if_has_return & else_has_return
         node.orelse = True
         node.type = node.condition.type
 
@@ -209,7 +234,7 @@ class CheckProgramVisitor(NodeVisitor):
     def visit_AssignmentStatement(self, node):
         # print('%s: AssignmentStatement: %s' % (node.lineno, node.__dict__))
         # 1. Check the location of the assignment
-        symbol = self.symbols.get(node.store_location.name)
+        symbol = self.symtab_lookup(node.store_location.name)
         if not symbol:
             error(node.lineno, '%s was not previously defined' %
                   node.store_location.name)
@@ -222,16 +247,18 @@ class CheckProgramVisitor(NodeVisitor):
             else:
                 self.visit(node.expr)
                 # 2. Check that the left and right hand side types match
-                if node.store_location.type != node.expr.type:
+                if getattr(node.store_location, 'type', None) != getattr(
+                        node.expr, 'type', None):
                     error(node.lineno, "Can not store type %s in type %s" %
-                          (node.store_location.type.name, node.expr.type.name))
+                          (node.store_location.type.name, getattr(
+                              node.expr, 'type.name', None)))
                 else:
                     node.store_location.expr = node.expr
 
     def visit_ConstantDeclaration(self, node):
         # print('%s: ConstantDeclaration: %s' % (node.lineno, node.__dict__))
         # 1. Check that the constant name is not already defined
-        symbol = self.symbols.get(node.name)
+        symbol = self.symtab_lookup(node.name)
         if symbol:
             error(node.lineno, '%s from %i was already defined at %s' %
                   (node.name, node.lineno, symbol.lineno))
@@ -239,12 +266,12 @@ class CheckProgramVisitor(NodeVisitor):
             self.visit(node.expr)
             node.type = node.expr.type
             # 2. Add an entry to the symbol table
-            self.symbols.add(node.name, node)
+            self.symtab_add(node.name, node)
 
     def visit_VariableDeclaration(self, node):
         # print('%s: VariableDeclaration: %s' % (node.lineno, node.__dict__))
         # 1. Check that the variable name is not already defined
-        symbol = self.symbols.get(node.name)
+        symbol = self.symtab_lookup(node.name)
         if symbol:
             error(node.lineno, '%s from %i was already defined at %s' %
                   (node.name, node.lineno, symbol.lineno))
@@ -262,12 +289,12 @@ class CheckProgramVisitor(NodeVisitor):
                 node.expr.type = node.type
             # 2. Add an entry to the symbol table
             # 3. Check that the type of the expression (if any) is the same
-            self.symbols.add(node.name, node)
+            self.symtab_add(node.name, node)
         # print('Post Visit VariableDeclaration %s' % node.__dict__)
 
     def visit_Typename(self, node):
         # print('Visited Typename: %s' % node.__dict__)
-        symbol = self.symbols.get(node.name)
+        symbol = self.symtab_lookup(node.name)
         if not symbol or not isinstance(symbol, types.GoneType):
             error(node.lineno, '%s is not a valid type at line %i' % (
                 node.name, node.lineno))
@@ -279,7 +306,7 @@ class CheckProgramVisitor(NodeVisitor):
     def visit_LoadVariable(self, node):
         # print('Visited LoadVariable: %r' % node.__dict__)
         # 1. Make sure the loaded location is valid.
-        symbol = self.symbols.get(node.name)
+        symbol = self.symtab_lookup(node.name)
         if not symbol:
             error(node.lineno, '%s on line %i is not a valid variable to '
                   'load data' % (node.name, node.lineno))
@@ -296,7 +323,7 @@ class CheckProgramVisitor(NodeVisitor):
     def visit_StoreVariable(self, node):
         # 1. Make sure the stored location allows assignment
         # print('Visited StoreVariable: %s' % node.__dict__)
-        symbol = self.symbols.get(node.name)
+        symbol = self.symtab_lookup(node.name)
         if not symbol:
             error(node.lineno, '%s on line %i is not a valid variable to '
                   'store data' % (node.name, node.lineno))
@@ -333,7 +360,7 @@ class CheckProgramVisitor(NodeVisitor):
             self.visit(param)
         self.visit(node.typename)
         node.type = node.typename.type
-        self.symbols.add(node.name, node)
+        self.symtab_add(node.name, node)
         # print('Visited FunctionPrototype: %s' % node.__dict__)
 
     def visit_ParameterDeclaration(self, node):
@@ -343,10 +370,10 @@ class CheckProgramVisitor(NodeVisitor):
 
     def visit_FunctionCall(self, node):
         # print(node.__dict__)
-        symbol = self.symbols.get(node.name)
+        symbol = self.symtab_lookup(node.name)
         if not symbol:
             error(node.lineno, '%s on line %i is not a known function' %
-                  (node.name, node.lineno(1)))
+                  (node.name, node.lineno))
         else:
             for arg in node.arglist:
                 self.visit(arg)
@@ -354,6 +381,54 @@ class CheckProgramVisitor(NodeVisitor):
 
         # print('Visited FunctionCall: %s' % node.__dict__)
 
+    # Function call support
+    def visit_ReturnStatement(self, node):
+        # 1. Check if we're actually inside a function
+        if self.current_function is None:
+            error(node.lineno, "return used outside of a function")
+        else:
+            # 2. Visit the expression
+            self.visit(node.expr)
+
+            # 3. Make sure the expression type matches the return type
+            if node.expr.type != self.current_function.prototype.type:
+                error(node.lineno, "Type error in return.  %s != %s" % (
+                    node.expr.type.name,
+                    getattr(self.current_function.prototype.type, 'name', None)
+                )
+                )
+            self.has_return = True
+
+    # Function declaration
+    def visit_FunctionDeclaration(self, node):
+        # 1. Check to make sure not nested function
+        if self.current_function:
+            error(node.lineno, "Nested functions not supported.")
+        else:
+            # 2. Visit prototype to check for duplication/typenames
+            self.visit(node.prototype)
+            node.type = node.prototype.type
+
+            # 3. Set up a new local scope
+            self.local_symtab = SymbolTable()
+            self.current_function = node
+            self.has_return = False
+
+            # 4. Processing function parameters and add symbols to symbol table
+            for parm in node.prototype.parameters:
+                self.symtab_add(parm.name, parm)
+
+            # 5. Visit the statements
+            self.visit(node.statements)
+
+            # 6. Pop the local scope
+            self.local_symtab = None
+            self.current_function = None
+
+            # 7. Check for return
+            if not self.has_return:
+                error(node.lineno, "Control might reach the end of function %s without a return." %
+                      node.prototype.name)
 # ----------------------------------------------------------------------
 #                       DO NOT MODIFY ANYTHING BELOW
 # ----------------------------------------------------------------------

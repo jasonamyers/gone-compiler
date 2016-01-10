@@ -2,6 +2,8 @@
 
 http://dabeaz.com/chicago/compiler.html
 
+The language is loosely based around go. 
+
 The compiler runs in a few stages:
 * Tokenizer - Breaks the progam into tokens
 * Parser - Uses the tokenizer to parse the program

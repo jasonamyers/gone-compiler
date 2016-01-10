@@ -4,7 +4,7 @@ Reference Interpreter - Optional
 ================================
 
 This is an interpreter than can run gone programs directly from the
-generated IR code.  This can be used to check results without 
+generated IR code.  This can be used to check results without
 requiring an LLVM dependency.
 
 To run a program use::
@@ -17,13 +17,15 @@ project.  You may need to make modifications to it to get it to work.
 import sys
 from . import bblock
 
+
 class Frame(object):
     '''
     Object representing a stack frame.
     '''
+
     def __init__(self, args):
         self.args = args
-        self.vars = { 'return' : None }
+        self.vars = {'return': None}
 
     def __getitem__(self, name):
         return self.vars[name]
@@ -33,14 +35,15 @@ class Frame(object):
 
     def __contains__(self, name):
         return name in self.vars
-        
+
+
 class Interpreter(object):
     '''
     Runs an interpreter on the SSA intermediate code generated for
     your compiler.   The implementation idea is as follows.  Given
     a sequence of instruction tuples such as:
 
-         code = [ 
+         code = [
               ('literal_int', 1, '_int_1'),
               ('literal_int', 2, '_int_2'),
               ('add_int', '_int_1', '_int_2, '_int_3')
@@ -63,7 +66,8 @@ class Interpreter(object):
     We don't have namespaces in the source language so this is going
     to be a bit of sick hack.
     '''
-    def __init__(self,name="module"):
+
+    def __init__(self, name="module"):
         # Frame stack
         self.framestack = []
 
@@ -77,16 +81,16 @@ class Interpreter(object):
         self.globals = {}
 
         # List of Python modules to search for external decls
-        external_libs = [ 'math', 'os']
+        external_libs = ['math', 'os']
         if sys.version_info.major >= 3:
             external_libs.append('builtins')
         else:
             external_libs.append('__builtin__')
 
-        self.external_libs = [ __import__(name) for name in external_libs ]
+        self.external_libs = [__import__(name) for name in external_libs]
 
-    # Add user-defined functions to the globals.  Builds a dictionary mapping function names
-    # to the code associated with each function
+    # Add user-defined functions to the globals.  Builds a dictionary mapping
+    # function names to the code associated with each function
     def register_functions(self, functionlist):
         self.functions = {}
         for func, code in functionlist:
@@ -95,7 +99,7 @@ class Interpreter(object):
     def execute_function(self, funcname, args):
         '''
         Run intermediate code in the interpreter.  ircode is a list
-        of instruction tuples.  Each instruction (opcode, *args) is 
+        of instruction tuples.  Each instruction (opcode, *args) is
         dispatched to a method self.run_opcode(*args)
         '''
         code = self.functions[funcname]
@@ -106,16 +110,16 @@ class Interpreter(object):
             instr = code[self.pc]
             opcode = instr[0]
             self.pc += 1
-            if hasattr(self, "run_"+opcode):
-                getattr(self, "run_"+opcode)(*instr[1:])
+            if hasattr(self, "run_" + opcode):
+                getattr(self, "run_" + opcode)(*instr[1:])
             else:
-                print("Warning: No run_"+opcode+"() method")
+                print("Warning: No run_" + opcode + "() method")
             if self.pc < 0:
                 break
         result = self.frame['return']
         self.pc, self.frame = self.framestack.pop()
         return result
-        
+
     # Interpreter opcodes
 
     def run_literal_int(self, value, target):
@@ -329,7 +333,10 @@ class Interpreter(object):
 # BlockLinker.  This block visitor walks through the block structure
 # and turns it into a single sequence of instructions with added
 # jump and cbranch instructions.
+
+
 class BlockLinker(bblock.BlockVisitor):
+
     def __init__(self):
         # The single sequence of code
         self.code = []
@@ -340,7 +347,7 @@ class BlockLinker(bblock.BlockVisitor):
     def link_blocks(self, start_block):
         # Visit the starting block
         self.visit(start_block)
-        
+
         # Patch the jumps in the code sequence
         for n, instr in enumerate(self.code):
             opcode = instr[0]
@@ -348,7 +355,8 @@ class BlockLinker(bblock.BlockVisitor):
                 newinstr = ('jump', self.blockmap[id(instr[1])])
                 self.code[n] = newinstr
             elif opcode == 'cbranch' and isinstance(instr[2], bblock.Block):
-                newinstr = ('cbranch', instr[1], self.blockmap[id(instr[2])], self.blockmap[id(instr[3])])
+                newinstr = ('cbranch', instr[1], self.blockmap[
+                            id(instr[2])], self.blockmap[id(instr[3])])
                 self.code[n] = newinstr
 
     def visit_BasicBlock(self, block):
@@ -365,11 +373,12 @@ class BlockLinker(bblock.BlockVisitor):
             else_branch = block.next_block
         else:
             else_branch = block.else_branch
-        self.code.append(('cbranch', block.testvar, block.if_branch, else_branch))
+        self.code.append(
+            ('cbranch', block.testvar, block.if_branch, else_branch))
 
         # Visit the if-branch
         self.visit(block.if_branch)
-        
+
         # Insert a jump to the merge point
         self.code.append(('jump', block.next_block))
 
@@ -382,8 +391,9 @@ class BlockLinker(bblock.BlockVisitor):
         self.blockmap[id(block)] = len(self.code)
         self.code.extend(block.instructions)
         # Insert the conditional branch instruction
-        self.code.append(('cbranch', block.testvar, block.body, block.next_block))
-        
+        self.code.append(
+            ('cbranch', block.testvar, block.body, block.next_block))
+
         # Visit the loop-body
         self.visit(block.body)
 
@@ -391,8 +401,9 @@ class BlockLinker(bblock.BlockVisitor):
         self.code.append(('jump', block))
 
 # ----------------------------------------------------------------------
-#                       DO NOT MODIFY ANYTHING BELOW       
+#                       DO NOT MODIFY ANYTHING BELOW
 # ----------------------------------------------------------------------
+
 
 def main():
     import sys
@@ -419,21 +430,13 @@ def main():
 
         interpreter = Interpreter()
         interpreter.register_functions(linked_functions)
-        # Execute the __init function which is responsible for global vars and constants
+        # Execute the __init function which is responsible for global vars and
+        # constants
         interpreter.execute_function('__init', [])
 
         # Execute the main() entry point
-        result = interpreter.execute_function('main',[])
+        result = interpreter.execute_function('main', [])
         print("Program Returned: %d" % result)
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-        
-        
-        

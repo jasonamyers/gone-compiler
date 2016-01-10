@@ -43,7 +43,7 @@ class IfBlock(Block):
 
 class WhileBlock(Block):
     '''
-    Class for representing a while-loop.  The instructions 
+    Class for representing a while-loop.  The instructions
     in the block evaluate the loop condition.  The
     body link points to the blocks in the loop body.
     '''

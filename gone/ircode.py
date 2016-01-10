@@ -474,17 +474,18 @@ class GenerateCode(ast.NodeVisitor):
         #
         # Project 7 - Control Flow
         # ------------------------
-        # You will extend this code to emit code in basic blocks that are linked
-        # together.  Most of the underlying code will remain unchanged except that
-        # instructions will be append to a block.  You'll also need to add support
-        # for if/else statements and while loops.
+        # You will extend this code to emit code in basic blocks that are
+        # linked together.  Most of the underlying code will remain unchanged
+        # except that instructions will be append to a block.  You'll also need
+        # to add support for if/else statements and while loops.
         #
         # Project 8 - Functions
         # ---------------------
-        # You will extend this code to organize the emitted code into a functions.
+        # You will extend this code to organize the emitted code into a
+        # functions.
         # Each function will consist of a name and a starting block.   Any code
-        # emitted outside of a function needs to be placed into a default function
-        # called __init().
+        # emitted outside of a function needs to be placed into a default
+        # function called __init().
 
         # ----------------------------------------------------------------------
         #                          TESTING/MAIN PROGRAM

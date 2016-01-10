@@ -33,7 +33,8 @@ class AST(object):
 # ----------------------------------------------------------------------
 # Specific AST nodes.
 #
-# For each node, you need to define a class and add the appropriate _fields = []
+# For each node, you need to define a class and add the
+# appropriate _fields = []
 # specification that indicates what fields are to be stored.  Just as
 # an example, for a binary operator, you might store the operator, the
 # left expression, and the right expression like this:

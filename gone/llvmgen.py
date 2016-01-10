@@ -18,8 +18,8 @@ Further instructions are contained in the comments below.
 # LLVM imports. Don't change this.
 
 from llvmlite.ir import (
-    Module, IRBuilder, Function, IntType, DoubleType, VoidType, Constant, GlobalVariable,
-    FunctionType
+    Module, IRBuilder, Function, IntType, DoubleType, VoidType, Constant,
+    GlobalVariable, FunctionType
 )
 
 from .bblock import BlockVisitor
@@ -94,12 +94,13 @@ class GenerateLLVM(object):
         #                         FunctionType(void_type, []),
         #                         name='main')
 
-        #self.block = self.function.append_basic_block('entry')
+        # self.block = self.function.append_basic_block('entry')
         self.block = None
-        #self.builder = IRBuilder(self.block)
+        # self.builder = IRBuilder(self.block)
         self.builder = None
 
-        # Dictionary that holds all of the global variable/function declarations.
+        # Dictionary that holds all of the global variable/function
+        # declarations.
         # Any declaration in the Gone source code is going to get an entry here
         # self.vars = {}
         self.globals = {}
@@ -205,7 +206,8 @@ class GenerateLLVM(object):
         # self.builder.ret_void()
 
     def terminate(self):
-        # Add a return statement. This connects the last block to the exit block.
+        # Add a return statement. This connects the last block to the exit
+        # block.
         # The return statement is then emitted
         if self.last_branch != self.block:
             self.builder.branch(self.exit_block)
@@ -297,9 +299,9 @@ class GenerateLLVM(object):
             return self.globals[name]
 
     def emit_load_int(self, name, target):
-        #print('LOADINT %s, %s' % (name, target))
-        #print('GLOBALS %s' % self.globals)
-        #print('LOCALS %s' % self.locals)
+        # print('LOADINT %s, %s' % (name, target))
+        # print('GLOBALS %s' % self.globals)
+        # print('LOCALS %s' % self.locals)
         self.temps[target] = self.builder.load(self.lookup_var(name), target)
 
     def emit_load_float(self, name, target):
@@ -378,8 +380,8 @@ class GenerateLLVM(object):
             Constant(float_type, 0.0),
             self.temps[source],
             target)
- # Binary < operator
 
+    # Binary < operator
     def emit_lt_int(self, left, right, target):
         self.temps[target] = self.builder.icmp_signed(
             '<', self.temps[left], self.temps[right], target)
@@ -611,7 +613,7 @@ def compile_llvm(source):
     # Generate low-level code
     # !!! This needs to be changed in Project 7/8
     # generator.generate_code(code)
-    #blockgen = GenerateBlocksLLVM(generator).visit(code.start_block)
+    # blockgen = GenerateBlocksLLVM(generator).visit(code.start_block)
     blockgen = GenerateBlocksLLVM(generator)
     for func in functions:
         # print('FUNC %s' % func.name)

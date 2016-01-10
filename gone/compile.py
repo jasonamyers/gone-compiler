@@ -32,7 +32,7 @@ def main():
         with tempfile.NamedTemporaryFile(suffix='.ll') as f:
             f.write(llvm_code.encode('utf-8'))
             f.flush()
-            #subprocess.check_output(['clang',  f.name, _rtlib, '-lm'])
+            # subprocess.check_output(['clang',  f.name, _rtlib, '-lm'])
 
             # Use this version when you get to Project 8
             subprocess.check_output(['clang', '-DNEED_MAIN', f.name, _rtlib])

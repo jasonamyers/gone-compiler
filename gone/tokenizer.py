@@ -28,7 +28,7 @@ text.
 
 Reserved Keywords:
     CONST   : 'const'
-    VAR     : 'var'  
+    VAR     : 'var'
     PRINT   : 'print'
     LEN     : 'len'
     FUNC    : 'func'
@@ -52,7 +52,7 @@ Operators and Delimiters:
     COMMA    : ','
 
 Literals:
-    INTEGER : '123'  
+    INTEGER : '123'
     FLOAT   : '1.234'
               '1.234e1'
               '1.234e+1'
@@ -69,8 +69,8 @@ Comments:  To be ignored by your lexer
 
 Errors: Your lexer must report the following error messages:
 
-     lineno: Illegal char 'c'         
-     lineno: Unterminated string     
+     lineno: Illegal char 'c'
+     lineno: Unterminated string
      lineno: Unterminated comment
 
 Testing

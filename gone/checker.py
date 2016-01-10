@@ -281,9 +281,9 @@ class CheckProgramVisitor(NodeVisitor):
             if node.expr:
                 self.visit(node.expr)
                 if node.expr.type != node.type:
-                    error(node.lineno, '%s is of type %s and is being set to %s '
-                          'which is of type %s' % (node.name, node.type, node.expr,
-                                                   node.expr.type))
+                    error(node.lineno, '%s is of type %s and is being set to '
+                          '%s which is of type %s' % (
+                              node.name, node.type, node.expr, node.expr.type))
             else:
                 node.expr = Literal(node.type.default_value)
                 node.expr.type = node.type
@@ -427,8 +427,8 @@ class CheckProgramVisitor(NodeVisitor):
 
             # 7. Check for return
             if not self.has_return:
-                error(node.lineno, "Control might reach the end of function %s without a return." %
-                      node.prototype.name)
+                error(node.lineno, 'Control might reach the end of function '
+                      '%s without a return.' % node.prototype.name)
 # ----------------------------------------------------------------------
 #                       DO NOT MODIFY ANYTHING BELOW
 # ----------------------------------------------------------------------

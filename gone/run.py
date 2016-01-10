@@ -34,8 +34,8 @@ def run(llvm_ir):
     # Execute the main() function
     #
     # !!! Note: Requires modification in Project 8 (see below)
-    #main_ptr = engine.get_function_address('main')
-    #main_func = ctypes.CFUNCTYPE(None)(main_ptr)
+    # main_ptr = engine.get_function_address('main')
+    # main_func = ctypes.CFUNCTYPE(None)(main_ptr)
     # main_func()
     init_ptr = engine.get_function_address('__init')
     init_func = ctypes.CFUNCTYPE(None)(init_ptr)

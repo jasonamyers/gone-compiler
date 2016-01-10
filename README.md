@@ -32,5 +32,4 @@ The compiler runs in a few stages:
 `python -m gone.llvmgen Programs/mandel.g`
 
 ## Run (JIT) the program and run it.
-python -m gone.run Programs/mandel.g
-
+`python -m gone.run Programs/mandel.g`

@@ -1,5 +1,7 @@
 # Gone compiler from David Beasley class.
 
+http://dabeaz.com/chicago/compiler.html
+
 The compiler runs in a few stages:
 * Tokenizer - Breaks the progam into tokens
 * Parser - Uses the tokenizer to parse the program
